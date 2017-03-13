@@ -12,6 +12,9 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E03280
 
 VOLUME /var/www/oscript.io
 
+ENV address=127.0.0.1
+COPY run.sh /var/run.sh
+
 EXPOSE 9001
 
-ENTRYPOINT fastcgi-mono-server4 /applications=/:/var/www/oscript.io /socket=tcp:127.0.0.1:9001
+ENTRYPOINT /var/run.sh
