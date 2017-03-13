@@ -3,11 +3,13 @@ services:
   nginx:
     build: nginx
     image: nginx-simple
+    links:
+      - "monoserver"
     ports:
       - "80:80"
     volumes:
-      - ./tmp/nginx_cfg:/etc/nginx/sites-enabled
-      - ./tmp/www:/var/www/
+      - /vagrant/tmp/nginx_cfg:/etc/nginx/sites-enabled
+      - /vagrant/tmp/www:/var/www/
       #- www:/var/www
       #- nginx_cfg:/etc/nginx/sites-enabled
   
@@ -17,7 +19,7 @@ services:
     ports:
       - "9001:9001"
     volumes:
-      - ./tmp/www:/var/www/
+      - /vagrant/tmp/www:/var/www/
       #- www:/var/www/oscript.io
 
 #volumes:
