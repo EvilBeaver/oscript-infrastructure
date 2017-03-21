@@ -1,7 +1,7 @@
 version: '3'
 services:
   nginx:
-    build: nginx
+    build: web/nginx
     image: nginx-simple
     links:
       - "monoserver"
@@ -10,12 +10,12 @@ services:
     volumes:
       - web_content:/var/www/
   monoserver:
-    build: site
+    build: web/site
     image: site_fcgi
     ports:
       - "9001:9001"
     volumes:
       - web_content:/var/www/
-
+  
 volumes:
   web_content:
