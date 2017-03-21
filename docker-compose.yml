@@ -16,6 +16,11 @@ services:
       - "9001:9001"
     volumes:
       - web_content:/var/www/
-  
+  jenkins:
+    build: jenkins
+    image: osjenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
 volumes:
   web_content:
