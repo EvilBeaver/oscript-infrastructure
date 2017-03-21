@@ -8,21 +8,14 @@ services:
     ports:
       - "80:80"
     volumes:
-      - /vagrant/tmp/nginx_cfg:/etc/nginx/sites-enabled
-      - /vagrant/tmp/www:/var/www/
-      #- www:/var/www
-      #- nginx_cfg:/etc/nginx/sites-enabled
-  
+      - web_content:/var/www/
   monoserver:
     build: site
     image: site_fcgi
     ports:
       - "9001:9001"
     volumes:
-      - /vagrant/tmp/www:/var/www/
-      #- www:/var/www/oscript.io
+      - web_content:/var/www/
 
-#volumes:
-#  nginx_cfg:
-#  www:
-#    external: true
+volumes:
+  web_content:
