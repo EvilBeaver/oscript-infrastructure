@@ -8,6 +8,7 @@ RUN cat /tmp/cat_me_to_fastcgi_params >> /etc/nginx/fastcgi_params && rm /tmp/ca
 
 COPY oscript.io /etc/nginx/sites-enabled
 COPY hub.oscript.io /etc/nginx/sites-enabled
+COPY jenkins /etc/nginx/sites-enabled
 
 VOLUME /etc/nginx/sites-enabled
 VOLUME /var/www
