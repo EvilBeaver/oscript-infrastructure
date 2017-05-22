@@ -73,8 +73,9 @@ Vagrant.configure(2) do |config|
   pkg_cmd = "curl -sSL https://get.docker.com/ | sh; "
   # Add vagrant user to the docker group
   pkg_cmd << "usermod -a -G docker vagrant; "
-  pkg_cmd << "apt-get -y install nginx; "
   
   config.vm.provision :shell, :inline => pkg_cmd
+  
+  config.vm.provision :shell, :path "init.sh"
   
 end

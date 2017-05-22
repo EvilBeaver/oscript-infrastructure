@@ -5,6 +5,7 @@ services:
     image: nginx-simple
     links:
       - "monoserver"
+      - "jenkins"
     ports:
       - "80:80"
     volumes:
