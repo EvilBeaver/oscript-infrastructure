@@ -1,5 +1,7 @@
 FROM ubuntu:16.04
 
+RUN apt-get clean && apt-get update && apt-get -y install locales
+
 ENV LANG ru_RU.UTF-8
 
 RUN locale-gen ru_RU && locale-gen ru_RU.UTF-8 \
