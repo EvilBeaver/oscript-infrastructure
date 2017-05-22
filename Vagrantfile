@@ -76,6 +76,6 @@ Vagrant.configure(2) do |config|
   
   config.vm.provision :shell, :inline => pkg_cmd
   
-  config.vm.provision :shell, :path "init.sh"
+  config.vm.provision :shell, path: "init.sh"
   
 end
