@@ -11,6 +11,7 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E03280
 	&& echo "deb http://download.mono-project.com/repo/debian wheezy main" | tee /etc/apt/sources.list.d/mono-xamarin.list \
 	&& apt-get update \
 	&& apt-get -y install mono-complete mono-fastcgi-server4
+	&& apt-get -y install tzdata
 
 VOLUME /var/www/oscript.io
 
