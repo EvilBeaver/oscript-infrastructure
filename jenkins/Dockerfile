@@ -1,5 +1,6 @@
-FROM jenkins:2.32.3
+FROM jenkins:2.46.3
 
-# oscript, пакеты и т.п.
-#COPY tools/* /opt/ci-tools/
-#RUN dpkg -i tools/*
+# для автообновления инстанса
+# добавить volume для /usr/share/jenkins
+#chown jenkins:jenkins /usr/share/jenkins
+#chown jenkins:jenkins /usr/share/jenkins/jenkins.war
