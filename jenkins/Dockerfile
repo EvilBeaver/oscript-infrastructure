@@ -13,4 +13,8 @@ RUN apt-get clean && apt-get update && \
 	&& apt-get update \
 	&& apt-get -y install mono-complete
 
+# slave должен иметь docker
+RUN curl -sSL https://get.docker.com/ | sh \
+	&& usermod -a -G docker jenkins
+
 USER jenkins
