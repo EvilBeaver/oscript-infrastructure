@@ -21,7 +21,4 @@ RUN apt-get -y install rsync
 RUN curl -sSL https://get.docker.com/ | sh \
 	&& usermod -a -G docker jenkins
 
-VOLUME /var/www
-RUN chown jenkins /var/www && chmod u+w /var/www
-
 USER jenkins
