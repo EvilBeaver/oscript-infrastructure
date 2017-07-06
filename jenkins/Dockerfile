@@ -13,13 +13,13 @@ RUN apt-get clean && apt-get update && \
 	&& apt-get update \
 	&& apt-get -y install mono-complete
 
-# Дополнительные пакеты поставим в отдельный слой, чтобы
-# зафиксировать долгую установку mono и не выполнять ее каждый раз при сборке.
-RUN apt-get -y install rsync
-
 # slave должен иметь docker
 RUN curl -sSL https://get.docker.com/ | sh \
 	&& usermod -a -G docker jenkins
+
+# Дополнительные пакеты поставим в отдельный слой, чтобы
+# зафиксировать долгую установку mono и не выполнять ее каждый раз при сборке.
+RUN apt-get -y install rsync sudo
 
 RUN mkdir -p /etc/sudoers.d && \
 	echo 'jenkins ALL=(root) NOPASSWD: /usr/bin/rsync' >> /etc/sudoers.d/10-jenkins
