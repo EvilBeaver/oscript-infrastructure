@@ -21,4 +21,6 @@ RUN apt-get -y install rsync
 RUN curl -sSL https://get.docker.com/ | sh \
 	&& usermod -a -G docker jenkins
 
+RUN echo 'jenkins ALL=(root) NOPASSWD: /usr/bin/rsync' >> /etc/sudoers.d/10-jenkins
+
 USER jenkins
