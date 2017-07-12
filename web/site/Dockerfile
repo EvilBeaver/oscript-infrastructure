@@ -14,8 +14,6 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E03280
 
 RUN apt-get -y install tzdata
 
-VOLUME /var/www/oscript.io
-
 COPY run.sh /var/run.sh
 RUN chmod +x /var/run.sh
 
