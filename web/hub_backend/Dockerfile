@@ -7,8 +7,7 @@ RUN locale-gen ru_RU && locale-gen ru_RU.UTF-8 \
     && update-locale LANG=ru_RU.UTF-8
 
 # Installing requiered packages
-# apt-get update &&
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
     apache2 \
     mono-complete \
     wget
