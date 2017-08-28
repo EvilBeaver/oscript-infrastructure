@@ -29,4 +29,7 @@ RUN opm install
 COPY 000-default.conf /etc/apache2/sites-enabled/000-default.conf
 RUN ln -s /etc/apache2/mods-available/cgi.load /etc/apache2/mods-enabled/cgi.load 
 
+# Copy hub secrets file
+COPY hub_backend.secret hub_backend.secret
+
 CMD /usr/sbin/apache2ctl -D FOREGROUND
