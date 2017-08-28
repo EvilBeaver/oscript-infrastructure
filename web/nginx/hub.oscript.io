@@ -11,6 +11,16 @@ server {
 		autoindex on;
 	}
 
+	location /push {
+		allow all;
+		gzip off;
+
+		proxy_set_header X-Real-IP  $remote_addr;
+		proxy_set_header X-Forwarded-For $remote_addr;
+		proxy_set_header Host $host;
+		proxy_pass http://hub_backend;
+	}
+
 	#keepalive_timeout   60;
 	#ssl_certificate      hub.oscript.crt;
 	#ssl_certificate_key  hub.private.key;
