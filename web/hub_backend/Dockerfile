@@ -10,6 +10,7 @@ RUN locale-gen ru_RU && locale-gen ru_RU.UTF-8 \
 RUN apt-get update && apt-get install -y \
     apache2 \
     mono-complete \
+    tzdata \
     wget
 
 # Installing oscript
