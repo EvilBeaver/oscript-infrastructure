@@ -17,6 +17,13 @@ RUN apt-get clean && apt-get update && \
 RUN curl -sSL https://get.docker.com/ | sh \
 	&& usermod -a -G docker jenkins
 
+#locales
+ENV LANG ru_RU.UTF-8
+RUN apt-get -y install locales \
+	&& locale-gen ru_RU \
+	&& locale-gen ru_RU.UTF-8 \
+	&& update-locale LANG=ru_RU.UTF-8
+
 # Дополнительные пакеты поставим в отдельный слой, чтобы
 # зафиксировать долгую установку mono и не выполнять ее каждый раз при сборке.
 RUN apt-get -y install rsync sudo
