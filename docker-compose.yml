@@ -6,15 +6,23 @@ services:
     links:
       - "monoserver"
       - "jenkins"
+      - "hub_backend"
     ports:
       - "80:80"
     volumes:
       - web_content:/var/www/
+    depends_on:
+      - hub_backend
   monoserver:
     build: web/site
     image: site_fcgi
     ports:
       - "9001:9001"
+    volumes:
+      - web_content:/var/www/
+  hub_backend:
+    build: web/hub_backend
+    image: hub-backend
     volumes:
       - web_content:/var/www/
   jenkins:
