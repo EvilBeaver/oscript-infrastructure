@@ -19,10 +19,10 @@ RUN curl -sSL https://get.docker.com/ | sh \
 
 #locales
 RUN apt-get -y install locales \
-	&& locale-gen ru_RU \
-	&& locale-gen ru_RU.UTF-8 \
-	&& update-locale LANG=ru_RU.UTF-8
+	&& sed -i -e 's/# ru_RU.UTF-8 UTF-8/ru_RU.UTF-8 UTF-8/' /etc/locale.gen \
+	&& locale-gen
 ENV LANG ru_RU.UTF-8
+RUN locale -a
 
 # Дополнительные пакеты поставим в отдельный слой, чтобы
 # зафиксировать долгую установку mono и не выполнять ее каждый раз при сборке.
