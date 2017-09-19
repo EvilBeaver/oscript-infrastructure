@@ -1,4 +1,4 @@
-FROM jenkins:2.60.2
+FROM jenkins:2.60.3
 
 # для автообновления инстанса
 # добавить volume для /usr/share/jenkins
