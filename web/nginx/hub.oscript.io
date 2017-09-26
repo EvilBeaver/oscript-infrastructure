@@ -15,6 +15,7 @@ server {
 		allow all;
 		gzip off;
 
+		client_max_body_size 50M;
 		proxy_set_header X-Real-IP  $remote_addr;
 		proxy_set_header X-Forwarded-For $remote_addr;
 		proxy_set_header Host $host;
