@@ -20,7 +20,7 @@ server {
 		proxy_set_header X-Forwarded-For $remote_addr;
 		proxy_set_header Host $host;
 		proxy_pass http://hub_backend;
-		proxy_temp_file_write_size 100m;
+		proxy_temp_file_write_size 0;
 	}
 
 	#keepalive_timeout   60;
