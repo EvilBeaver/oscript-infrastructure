@@ -21,7 +21,6 @@ server {
 		proxy_set_header Host $host;
 		proxy_pass http://hub_backend;
 		proxy_temp_file_write_size 100m;
-		client_max_body_size 100m;
 	}
 
 	#keepalive_timeout   60;
