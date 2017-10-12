@@ -10,7 +10,6 @@ COPY oscript.io /etc/nginx/sites-enabled
 COPY hub.oscript.io /etc/nginx/sites-enabled
 COPY jenkins /etc/nginx/sites-enabled
 
-VOLUME /etc/nginx/sites-enabled
 VOLUME /var/www
 
 EXPOSE 80
