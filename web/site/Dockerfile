@@ -1,4 +1,4 @@
-FROM evilbeaver/mono-ru
+FROM evilbeaver/mono-ru:5.4
 
 ENV LANG ru_RU.UTF-8
 
