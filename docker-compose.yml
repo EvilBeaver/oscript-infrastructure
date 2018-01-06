@@ -7,7 +7,7 @@ services:
       - "monoserver"
       - "jenkins"
       - "hub_backend"
-      - "opm_database"
+    #  - "opm_database"
     ports:
       - "80:80"
     volumes:
@@ -28,13 +28,13 @@ services:
     image: hub-backend
     volumes:
       - web_content:/var/www/
-  opm_database:
-    build: web/opm_database
-    image: opm-db
-    command: -w db.json
-    ports:
-      - "3000:3000"
-    restart: always
+  # opm_database:
+  #   build: web/opm_database
+  #   image: opm-db
+  #   command: -w db.json
+  #   ports:
+  #     - "3000:3000"
+  #   restart: always
   jenkins:
     build: jenkins
     image: osjenkins
