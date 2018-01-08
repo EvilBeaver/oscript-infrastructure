@@ -11,15 +11,18 @@ server {
         autoindex on;
     }
 
-    location /push {
+    location = /push {
         allow all;
         gzip off;
-
+        rewrite ^/push$ /push-package.os break;
         client_max_body_size 50M;
-        proxy_set_header X-Real-IP  $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header Host $host;
-        proxy_pass http://hub_backend;
+        fastcgi_index /;
+        fastcgi_pass hub_backend:9002;
+        include /etc/nginx/fastcgi_params;
+    }
+
+    location ~ \.os {
+        
     }
 
     #location /api {

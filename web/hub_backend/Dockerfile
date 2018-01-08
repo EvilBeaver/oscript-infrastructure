@@ -16,5 +16,5 @@ COPY app /var/xsp
 WORKDIR /var/xsp
 RUN /var/xsp/install.sh
 
-EXPOSE 8080
-CMD xsp4 --port 8080 --applications=*:8080:/:.
+EXPOSE 9002
+CMD xsp4 --port 9002 --applications=*:9002:/:. --nonstop

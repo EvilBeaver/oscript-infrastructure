@@ -14,7 +14,7 @@ services:
       - web_content:/var/www/
     depends_on:
       - hub_backend
-      - opm_database
+      #- opm_database
       - monoserver
   monoserver:
     build: web/site
@@ -26,6 +26,8 @@ services:
   hub_backend:
     build: web/hub_backend
     image: hub-backend
+    ports:
+      - "9002:9002"
     volumes:
       - web_content:/var/www/
   # opm_database:
