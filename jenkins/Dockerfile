@@ -1,4 +1,4 @@
-FROM jenkins/jenkins:lts
+FROM jenkins/jenkins
 
 # для автообновления инстанса
 # добавить volume для /usr/share/jenkins
