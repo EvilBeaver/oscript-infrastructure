@@ -26,6 +26,11 @@ services:
   hub_backend:
     build: web/hub_backend
     image: hub-backend
+    environment:
+      - PATH_TO_OSCRIPT_HUB
+      - GITHUB_SUPER_TOKEN
+      - GITTER_OAUTH_TOKEN
+      - GITTER_ROOM
     ports:
       - "9002:9002"
     volumes:
