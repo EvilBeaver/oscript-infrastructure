@@ -7,12 +7,15 @@ services:
       - "monoserver"
       - "jenkins"
       - "hub_backend"
+    #  - "opm_database"
     ports:
       - "80:80"
     volumes:
       - web_content:/var/www/
     depends_on:
       - hub_backend
+      #- opm_database
+      - monoserver
   monoserver:
     build: web/site
     image: site_fcgi
@@ -23,8 +26,22 @@ services:
   hub_backend:
     build: web/hub_backend
     image: hub-backend
+    environment:
+      - PATH_TO_OSCRIPT_HUB
+      - GITHUB_SUPER_TOKEN
+      - GITTER_OAUTH_TOKEN
+      - GITTER_ROOM
+    ports:
+      - "9002:9002"
     volumes:
       - web_content:/var/www/
+  # opm_database:
+  #   build: web/opm_database
+  #   image: opm-db
+  #   command: -w db.json
+  #   ports:
+  #     - "3000:3000"
+  #   restart: always
   jenkins:
     build: jenkins
     image: osjenkins
