@@ -14,6 +14,7 @@ COPY app /var/xsp
 
 # Installing backend oscript dependencies
 WORKDIR /var/xsp
+RUN chmod +x /var/xsp/install.sh
 RUN /var/xsp/install.sh
 
 EXPOSE 9002
