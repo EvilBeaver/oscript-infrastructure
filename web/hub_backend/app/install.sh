@@ -2,8 +2,15 @@
 
 mkdir bin
 mkdir lib
-cp -r /usr/share/oscript/bin/* bin/
-cp -r /usr/share/oscript/lib/* lib/
-cp ASPNETHandler.dll bin/
 
+echo folders created
+
+cp -rv /usr/share/oscript/bin/* bin/
+cp -rv /usr/share/oscript/lib/* lib/
+echo oscript copied
+cp ASPNETHandler.dll bin/
+echo handler copied
+
+echo starting opm
 opm install -dest lib
+echo done
