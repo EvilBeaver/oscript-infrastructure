@@ -1,7 +1,9 @@
 FROM evilbeaver/mono-ru:5.4
 
-# MAINTAINER EvilBeaver <ovsiankin.aa@gmail.com>
+LABEL MAINTAINER="EvilBeaver <ovsiankin.aa@gmail.com>"
 
-RUN curl http://oscript.io/downloads/1_0_19/deb > oscript.deb \
+ARG VERSION=night-build
+
+RUN curl http://oscript.io/downloads/$VERSION/deb > oscript.deb \
     && dpkg -i oscript.deb \
     && rm -f oscript.deb
