@@ -1,4 +1,4 @@
-FROM evilbeaver/onescript:1.0.19
+FROM evilbeaver/onescript:1.0.20
 
 # Installing requiered packages
 RUN apt-get clean \
