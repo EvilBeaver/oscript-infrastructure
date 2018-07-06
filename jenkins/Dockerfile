@@ -26,7 +26,10 @@ RUN locale -a
 
 # Дополнительные пакеты поставим в отдельный слой, чтобы
 # зафиксировать долгую установку mono и не выполнять ее каждый раз при сборке.
-RUN apt-get -y install rsync sudo
+RUN apt-get -y install rsync sudo \
+	&& wget http://oscript.io/downloads/latest/onescript-engine_1.0.20_all.deb \
+	&& dpkg -i install onescript-engine_1.0.20_all.deb \
+	&& rm onescript-engine_1.0.20_all.deb
 
 RUN mkdir -p /etc/sudoers.d && \
 	echo 'jenkins ALL=(root) NOPASSWD: /usr/bin/rsync' >> /etc/sudoers.d/10-jenkins
