@@ -14,7 +14,7 @@ services:
       - web_content:/var/www/
     depends_on:
       - hub_backend
-      #- opm_database
+      - opm_hub
       - monoserver
   monoserver:
     build: web/site
@@ -35,13 +35,16 @@ services:
       - "9002:9002"
     volumes:
       - web_content:/var/www/
-  # opm_database:
-  #   build: web/opm_database
-  #   image: opm-db
-  #   command: -w db.json
-  #   ports:
-  #     - "3000:3000"
-  #   restart: always
+  opm_hub:
+    image: evilbeaver/os-hub:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - OSHUB_BINARY_ROOT=/var/www/hub.oscript.io
+      - GITHUB_AUTH_TOKEN
+    volumes:
+      - web_content:/var/www/
+    restart: always
   jenkins:
     build: jenkins
     image: osjenkins
