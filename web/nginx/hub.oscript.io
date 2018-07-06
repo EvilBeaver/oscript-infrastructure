@@ -7,8 +7,11 @@ server {
     root /var/www/hub.oscript.io;
     
     location / {
-        allow all;
-        autoindex on;
+        gzip off;
+        proxy_set_header X-Real-IP  $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $host;
+        proxy_pass http://opm_hub:5000;
     }
 
     location = /push {
