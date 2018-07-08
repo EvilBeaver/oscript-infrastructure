@@ -6,14 +6,6 @@ server {
     
     root /var/www/hub.oscript.io;
     
-    location / {
-        gzip off;
-        proxy_set_header X-Real-IP  $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header Host $host;
-        proxy_pass http://opm_hub:5000;
-    }
-
     location = /push {
         allow all;
         gzip off;
@@ -23,6 +15,14 @@ server {
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header Host $host;
         proxy_pass http://hub_backend:9002;
+    }
+
+    location / {
+        gzip off;
+        proxy_set_header X-Real-IP  $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $host;
+        proxy_pass http://opm_hub:5000;
     }
 
     #location /api {
