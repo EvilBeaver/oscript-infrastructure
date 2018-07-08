@@ -25,23 +25,6 @@ server {
         proxy_pass http://opm_hub:5000;
     }
 
-    #location /api {
-    #    allow all;
-    #    gzip off;
-
-    #    limit_except GET { 
-    #        deny all;
-    #    } 
-
-    #    rewrite ^/api$  break;
-    #    rewrite /api(.*) $1  break;
-
-    #    proxy_set_header X-Real-IP  $remote_addr;
-    #    proxy_set_header X-Forwarded-For $remote_addr;
-    #    proxy_set_header Host $host;
-    #    proxy_pass http://opm_database:3000;
-    #}
-
     #keepalive_timeout   60;
     #ssl_certificate      hub.oscript.crt;
     #ssl_certificate_key  hub.private.key;
