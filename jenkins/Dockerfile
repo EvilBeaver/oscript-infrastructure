@@ -29,7 +29,9 @@ RUN locale -a
 RUN apt-get -y install rsync sudo \
 	&& wget http://oscript.io/downloads/latest/onescript-engine_1.0.20_all.deb \
 	&& dpkg -i onescript-engine_1.0.20_all.deb \
-	&& rm onescript-engine_1.0.20_all.deb
+	&& rm onescript-engine_1.0.20_all.deb \
+	&& curl -L https://github.com/docker/compose/releases/download/1.22.0-rc2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose \
+	&& chmod +x /usr/local/bin/docker-compose
 
 RUN mkdir -p /etc/sudoers.d && \
 	echo 'jenkins ALL=(root) NOPASSWD: /usr/bin/rsync' >> /etc/sudoers.d/10-jenkins
