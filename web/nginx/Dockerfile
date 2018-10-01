@@ -9,6 +9,10 @@ RUN cat /tmp/cat_me_to_fastcgi_params >> /etc/nginx/fastcgi_params && rm /tmp/ca
 COPY oscript.io /etc/nginx/sites-enabled
 COPY hub.oscript.io /etc/nginx/sites-enabled
 COPY jenkins /etc/nginx/sites-enabled
+COPY web.oscript.io /etc/nginx/sites-enabled
+
+# Пока статически в nginx, потом придумаем куда
+COPY web-docs /var/www/web.oscript.io/
 
 VOLUME /var/www
 

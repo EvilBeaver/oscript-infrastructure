@@ -7,5 +7,6 @@ server {
    server_name web.oscript.io;
     
    location / {
+       alias /var/www/web.oscript.io
    }
 }
