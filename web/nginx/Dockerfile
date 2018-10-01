@@ -10,9 +10,11 @@ COPY oscript.io /etc/nginx/sites-enabled
 COPY hub.oscript.io /etc/nginx/sites-enabled
 COPY jenkins /etc/nginx/sites-enabled
 COPY web.oscript.io /etc/nginx/sites-enabled
+RUN rm /etc/nginx/sites-enabled/default
 
-# Пока статически в nginx, потом придумаем куда
-COPY web-docs /var/www/web.oscript.io/
+# FIXME
+# volume перекрывает весь контент, лежащий в образе
+# сейчас сайт веб-документации помещается в контейнер nginx руками через docker cp
 
 VOLUME /var/www
 
