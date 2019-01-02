@@ -8,7 +8,7 @@ FROM jenkins/jenkins
 # slave должен иметь mono
 USER root
 RUN apt-get clean && apt-get update && \
-    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
+    apt-key adv --no-tty --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
 	&& echo "deb http://download.mono-project.com/repo/debian stable-stretch main" | tee /etc/apt/sources.list.d/mono-official.list \
 	&& apt-get update \
 	&& apt-get -y install mono-complete
@@ -27,7 +27,7 @@ RUN locale -a
 # Дополнительные пакеты поставим в отдельный слой, чтобы
 # зафиксировать долгую установку mono и не выполнять ее каждый раз при сборке.
 RUN apt-get -y install rsync sudo \
-	&& wget http://oscript.io/downloads/latest/onescript-engine_1.0.20_all.deb \
+	&& wget http://oscript.io/downloads/1_0_20/onescript-engine_1.0.20_all.deb \
 	&& dpkg -i onescript-engine_1.0.20_all.deb \
 	&& rm onescript-engine_1.0.20_all.deb \
 	&& curl -L https://github.com/docker/compose/releases/download/1.22.0-rc2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose \
