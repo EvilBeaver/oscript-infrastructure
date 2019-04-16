@@ -22,7 +22,7 @@ services:
     build: web/site-old
     image: site_fcgi
     ports:
-      - "9001:9001"
+      - "9001"
     volumes:
       - web_content:/var/www/
   
@@ -30,7 +30,7 @@ services:
     build: web/site
     image: site_osweb
     ports:
-      - "5000:5000"
+      - "5000"
     volumes:
       - web_content:/var/www/
 
@@ -43,14 +43,14 @@ services:
       - GITTER_OAUTH_TOKEN
       - GITTER_ROOM
     ports:
-      - "9002:9002"
+      - "9002"
     volumes:
       - web_content:/var/www/
   
   opm_hub:
     image: evilbeaver/os-hub:latest
     ports:
-      - "5000:5000"
+      - "5000"
     environment:
       - OSHUB_BINARY_ROOT=/var/www/hub.oscript.io
       - GITHUB_AUTH_TOKEN
@@ -61,7 +61,7 @@ services:
     build: jenkins
     image: osjenkins
     ports:
-      - "8080:8080"
+      - "8080"
       - "50000:50000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
