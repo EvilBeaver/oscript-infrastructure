@@ -16,13 +16,24 @@ services:
       - hub_backend
       - opm_hub
       - monoserver
+      - site
+  
   monoserver:
-    build: web/site
+    build: web/site-old
     image: site_fcgi
     ports:
       - "9001:9001"
     volumes:
       - web_content:/var/www/
+  
+  site:
+    build: web/site
+    image: site_osweb
+    ports:
+      - "5000:5000"
+    volumes:
+      - web_content:/var/www/
+
   hub_backend:
     build: web/hub_backend
     image: hub-backend
@@ -35,6 +46,7 @@ services:
       - "9002:9002"
     volumes:
       - web_content:/var/www/
+  
   opm_hub:
     image: evilbeaver/os-hub:latest
     ports:
