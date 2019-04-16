@@ -36,6 +36,8 @@ services:
       - OS_DOWLOAD_DIRECTORY=/var/www/oscript.io/download
     volumes:
       - web_content:/var/www/
+    depends_on:
+      - opm_hub
 
   hub_backend:
     build: web/hub_backend
