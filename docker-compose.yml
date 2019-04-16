@@ -31,6 +31,9 @@ services:
     image: site_osweb
     ports:
       - "5000"
+    environment:
+      - OS_CONTENT_DIRECTORY=/var/www/oscript.io/App_Data
+      - OS_DOWLOAD_DIRECTORY=/var/www/oscript.io/download
     volumes:
       - web_content:/var/www/
 
