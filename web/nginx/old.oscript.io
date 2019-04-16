@@ -1,14 +1,14 @@
 server {
    listen 80;
 
-   root /var/www/oscript.io;
+   root /var/www/old.oscript.io;
    index index.html index.htm default.aspx Default.aspx;
 
    #rewrite_log on;
-   server_name oscript.io www.oscript.io;
+   server_name old.oscript.io;
 
    location /content {
-        alias /var/www/oscript.io/Content;
+        alias /var/www/old.oscript.io/Content;
    }
 
    location / {

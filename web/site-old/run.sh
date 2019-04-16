@@ -10,6 +10,6 @@ fi
 
 echo "Docker address: ${address}"
 
-mkdir -p /var/www/oscript.io
+mkdir -p /var/www/old.oscript.io
 
-fastcgi-mono-server4 /applications=/:/var/www/oscript.io /socket=tcp:${address}:9001
+fastcgi-mono-server4 /applications=/:/var/www/old.oscript.io /socket=tcp:${address}:9001
