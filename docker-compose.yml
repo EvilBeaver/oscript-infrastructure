@@ -32,8 +32,8 @@ services:
     ports:
       - "5000"
     environment:
-      - OS_CONTENT_DIRECTORY=/var/www/oscript.io/App_Data
-      - OS_DOWNLOAD_DIRECTORY=/var/www/oscript.io/download
+      - OS_CONTENT_DIRECTORY
+      - OS_DOWNLOAD_DIRECTORY
     volumes:
       - web_content:/var/www/
     depends_on:
