@@ -4,9 +4,7 @@ services:
     build: web/nginx
     image: nginx-simple
     links:
-      - "monoserver"
       - "jenkins"
-      - "hub_backend"
     #  - "opm_database"
     ports:
       - "80:80"
@@ -17,14 +15,6 @@ services:
       - opm_hub
       - monoserver
       - site
-  
-  monoserver:
-    build: web/site-old
-    image: site_fcgi
-    ports:
-      - "9001"
-    volumes:
-      - web_content:/var/www/
   
   site:
     build: web/site
@@ -39,19 +29,6 @@ services:
     depends_on:
       - opm_hub
 
-  hub_backend:
-    build: web/hub_backend
-    image: hub-backend
-    environment:
-      - PATH_TO_OSCRIPT_HUB
-      - GITHUB_SUPER_TOKEN
-      - GITTER_OAUTH_TOKEN
-      - GITTER_ROOM
-    ports:
-      - "9002"
-    volumes:
-      - web_content:/var/www/
-  
   opm_hub:
     image: evilbeaver/os-hub:latest
     ports:
