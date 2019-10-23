@@ -33,7 +33,7 @@ services:
     ports:
       - "5000"
     environment:
-      - OS_CONTENT_DIRECTORY
+      - OS_CONTENT_DIRECTORY=/app/content
       - OS_DOWNLOAD_DIRECTORY
     volumes:
       - web_content:/var/www/
@@ -42,8 +42,9 @@ services:
 
   site-dev:
     build: web/site-dev
+    image: site_osweb:dev
     ports:
-      - 5005:5000
+      - "5000"
     environment:
       - OS_CONTENT_DIRECTORY=/app/content
       - OS_DOWNLOAD_DIRECTORY
