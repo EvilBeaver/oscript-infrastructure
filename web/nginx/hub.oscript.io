@@ -20,4 +20,6 @@ server {
     #ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
     #ssl_ciphers  "RC4:HIGH:!aNULL:!MD5:!kEDH";
     #add_header Strict-Transport-Security 'max-age=604800';
+
+    client_max_body_size 50m;
 }
