@@ -11,9 +11,7 @@ services:
     volumes:
       - web_content:/var/www/
     depends_on:
-      - hub_backend
       - opm_hub
-      - monoserver
       - site
       - site-dev
   
@@ -44,7 +42,7 @@ services:
       - opm_hub
 
   opm_hub:
-    image: evilbeaver/os-hub:latest
+    image: evilbeaver/os-hub:4
     ports:
       - "5000"
     environment:
