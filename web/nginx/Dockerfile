@@ -6,11 +6,8 @@ COPY cat_me_to_fastcgi_params /tmp/
 RUN apt-get update && apt-get -y install nginx
 RUN cat /tmp/cat_me_to_fastcgi_params >> /etc/nginx/fastcgi_params && rm /tmp/cat_me_to_fastcgi_params
 
-COPY oscript.io /etc/nginx/sites-enabled
-COPY beta.oscript.io /etc/nginx/sites-enabled
-COPY hub.oscript.io /etc/nginx/sites-enabled
-COPY jenkins /etc/nginx/sites-enabled
-COPY web.oscript.io /etc/nginx/sites-enabled
+COPY ssl_conf /etc/nginx/ssl_conf
+COPY sites-enabled /etc/nginx/sites-enabled
 RUN rm /etc/nginx/sites-enabled/default
 
 # FIXME

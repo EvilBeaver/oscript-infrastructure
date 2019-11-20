@@ -3,18 +3,23 @@ services:
   nginx:
     build: web/nginx
     image: nginx-simple
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"    
     links:
       - "jenkins"
     #  - "opm_database"
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - web_content:/var/www/
+      - ./web/certbot/conf:/etc/letsencrypt/
+      - ./web/certbot/www:/var/www/certbot
+      - ./logs/nginx:/var/log/nginx
     depends_on:
       - opm_hub
       - site
       - site-dev
-  
+      - certbot
   site:
     build: web/site
     image: site_osweb
@@ -61,6 +66,15 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - jenkins_home:/var/jenkins_home
       - web_content:/var/www
+
+  certbot:
+    image: certbot/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    volumes:
+      - ./web/certbot/conf:/etc/letsencrypt
+      - ./web/certbot/www:/var/www/certbot
+      - ./logs/certbot:/var/log/letsencrypt
+
 volumes:
   web_content:
   jenkins_home:
