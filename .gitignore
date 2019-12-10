@@ -1,3 +1,5 @@
 tmp/
 .vagrant/
 .env
+logs/**/*.log
+web/certbot/conf/
