@@ -10,6 +10,12 @@ COPY ssl_conf /etc/nginx/ssl_conf
 COPY sites-enabled /etc/nginx/sites-enabled
 RUN rm /etc/nginx/sites-enabled/default
 
+# FIXME
+# volume перекрывает весь контент, лежащий в образе
+# сейчас сайт веб-документации помещается в контейнер nginx руками через docker cp
+
+VOLUME /var/www
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
