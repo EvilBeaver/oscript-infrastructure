@@ -1,7 +1,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name oscript.io www.oscript.io;;
+    server_name oscript.io www.oscript.io;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
