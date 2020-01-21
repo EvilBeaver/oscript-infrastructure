@@ -2,6 +2,8 @@ server {
     listen 80;
     listen [::]:80;
     server_name hub.oscript.io;
+    
+    client_max_body_size 50M;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
