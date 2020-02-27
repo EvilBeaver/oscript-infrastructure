@@ -4,6 +4,6 @@ LABEL MAINTAINER="EvilBeaver <ovsiankin.aa@gmail.com>"
 
 ARG VERSION=night-build
 
-RUN curl http://oscript.io/downloads/$VERSION/deb > oscript.deb \
+RUN curl https://oscript.io/downloads/$VERSION/deb?bitness=x64 > oscript.deb \
     && dpkg -i oscript.deb \
     && rm -f oscript.deb
