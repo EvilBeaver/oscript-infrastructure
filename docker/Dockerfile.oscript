@@ -1,4 +1,4 @@
-FROM evilbeaver/mono-ru:5.4
+FROM evilbeaver/mono-ru:6.8
 
 LABEL MAINTAINER="EvilBeaver <ovsiankin.aa@gmail.com>"
 
