@@ -74,7 +74,13 @@ services:
       - ./web/certbot/conf:/etc/letsencrypt
       - ./web/certbot/www:/var/www/certbot
       - ./logs/certbot:/var/log/letsencrypt
-
+  tg_bot:
+    build: bot
+    image: tg_bot
+    ports: 
+      - "5000"
+    environment: 
+      - TELEGRAM_TOKEN
 volumes:
   web_content:
   jenkins_home:
