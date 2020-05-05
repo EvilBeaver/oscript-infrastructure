@@ -47,7 +47,7 @@ services:
       - opm_hub
 
   opm_hub:
-    image: evilbeaver/os-hub:5
+    image: evilbeaver/os-hub:6
     ports:
       - "5000"
     environment:
@@ -66,6 +66,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - jenkins_home:/var/jenkins_home
       - web_content:/var/www
+    depends_on: 
+      - tg_bot
 
   certbot:
     image: certbot/certbot
