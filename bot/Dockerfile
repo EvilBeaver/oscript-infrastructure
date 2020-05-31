@@ -1,4 +1,4 @@
-FROM evilbeaver/onescript:1.3.0
+FROM evilbeaver/onescript:1.0.21
 
 COPY . /app
 WORKDIR /app
