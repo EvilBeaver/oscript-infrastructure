@@ -3,3 +3,4 @@ tmp/
 .env
 logs/**/*.log
 web/certbot/conf/
+bot/oscript_modules
