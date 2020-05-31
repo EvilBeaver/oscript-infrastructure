@@ -17,6 +17,7 @@ server {
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Server $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;  
+        proxy_set_header X-Forwarded-Proto $scheme;
 
         proxy_redirect off;
         proxy_set_header X-Real-IP  $remote_addr;
@@ -47,6 +48,7 @@ server {
     proxy_set_header X-Forwarded-Host $host;
     proxy_set_header X-Forwarded-Server $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    
     client_max_body_size 50M;
 
     proxy_redirect off;
@@ -55,6 +57,7 @@ server {
         gzip off;
         proxy_set_header X-Real-IP  $remote_addr;
         proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Host $host;
         proxy_pass http://opm_hub:5000;
     }
