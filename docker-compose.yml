@@ -48,7 +48,7 @@ services:
       - opm_hub
 
   opm_hub:
-    image: otymko/os-hub:7.0 # временно
+    image: evilbeaver/os-hub:7.0
     ports:
       - "5000"
     environment:
@@ -63,7 +63,7 @@ services:
       - web_content:/var/www/
     restart: always
     depends_on:
-      - db
+      - opm_hub_db
 
   jenkins:
     build: jenkins
