@@ -20,6 +20,7 @@ services:
       - site
       - site-dev
       - certbot
+  
   site:
     build: web/site
     image: site_osweb
@@ -47,15 +48,23 @@ services:
       - opm_hub
 
   opm_hub:
-    image: evilbeaver/os-hub:6.1
+    image: otymko/os-hub:7.0 # временно
     ports:
       - "5000"
     environment:
       - OSHUB_BINARY_ROOT=/var/www/hub.oscript.io
       - GITHUB_AUTH_TOKEN
+      - GITHUB_SUPER_TOKEN
+      - OSWEB_DATABASE__TYPE
+      - OSWEB_DATABASE__CONNECTIONSTRING
+      - OSHUB_DEFAULT_USER
+      - OSHUB_DEFAULT_PASSWORD
     volumes:
       - web_content:/var/www/
     restart: always
+    depends_on:
+      - db
+
   jenkins:
     build: jenkins
     image: osjenkins
@@ -69,6 +78,16 @@ services:
     depends_on: 
       - tg_bot
 
+  opm_hub_db:
+    image: postgres:12
+    ports:
+      - 5432:5432
+    volumes:
+     - postgres_data:/data
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+  
   certbot:
     image: certbot/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
@@ -76,6 +95,7 @@ services:
       - ./web/certbot/conf:/etc/letsencrypt
       - ./web/certbot/www:/var/www/certbot
       - ./logs/certbot:/var/log/letsencrypt
+  
   tg_bot:
     image: evilbeaver/os-tg-bot:latest
     ports: 
@@ -85,3 +105,4 @@ services:
 volumes:
   web_content:
   jenkins_home:
+  postgres_data:
