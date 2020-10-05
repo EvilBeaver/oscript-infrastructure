@@ -48,7 +48,7 @@ services:
       - opm_hub
 
   opm_hub:
-    image: evilbeaver/os-hub:7.0
+    image: evilbeaver/os-hub:7.1
     ports:
       - "5000"
     environment:
@@ -59,6 +59,7 @@ services:
       - OSWEB_DATABASE__CONNECTIONSTRING
       - OSHUB_DEFAULT_USER
       - OSHUB_DEFAULT_PASSWORD
+      - OSHUB_TG_NOTIFICATION
     volumes:
       - web_content:/var/www/
     restart: always
