@@ -48,7 +48,7 @@ services:
       - opm_hub
 
   opm_hub:
-    image: evilbeaver/os-hub:7.1
+    image: evilbeaver/os-hub:7.4
     ports:
       - "5000"
     environment:
@@ -60,6 +60,8 @@ services:
       - OSHUB_DEFAULT_USER
       - OSHUB_DEFAULT_PASSWORD
       - OSHUB_TG_NOTIFICATION
+      - TELEGRAM_TOKEN
+      - TELEGRAM_GROUP_ID
     volumes:
       - web_content:/var/www/
     restart: always
