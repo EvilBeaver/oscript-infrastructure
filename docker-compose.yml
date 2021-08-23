@@ -48,7 +48,7 @@ services:
       - opm_hub
 
   opm_hub:
-    image: evilbeaver/os-hub:7.7
+    image: evilbeaver/os-hub:8.0
     ports:
       - "5000"
     environment:
