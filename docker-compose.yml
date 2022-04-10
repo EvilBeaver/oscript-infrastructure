@@ -55,8 +55,8 @@ services:
       - OSHUB_BINARY_ROOT=/var/www/hub.oscript.io
       - GITHUB_AUTH_TOKEN
       - GITHUB_SUPER_TOKEN
-      - OSWEB_DATABASE__TYPE
-      - OSWEB_DATABASE__CONNECTIONSTRING
+      - OSWEB_Database__DBType
+      - OSWEB_Database__ConnectionString
       - OSHUB_DEFAULT_USER
       - OSHUB_DEFAULT_PASSWORD
       - OSHUB_TG_NOTIFICATION
