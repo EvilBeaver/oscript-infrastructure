@@ -34,8 +34,10 @@ server {
     proxy_redirect off;
 
     location / {
-#Куда перенаправляем запросы, например:
-#        proxy_pass http://site:5000; 
+# Куда перенаправляем запросы, например:
+#		http://site:5000
+		set target_url="http://site:5000";
+        proxy_pass $target_url; 
     }
 
     include /etc/nginx/ssl_conf/options-ssl-nginx.conf;
