@@ -32,10 +32,11 @@ server {
     proxy_redirect off;
 
     location / {
-		proxy_pass http://jenkins:8080;
-		proxy_set_header X-Real-IP $remote_addr;
-		proxy_set_header Host $http_host;
-		proxy_set_header X-NginX-Proxy true;    
+        set target_url="http://jenkins:8080";
+        proxy_pass $target_url; 
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-NginX-Proxy true;    
     }
 
     include /etc/nginx/ssl_conf/options-ssl-nginx.conf;

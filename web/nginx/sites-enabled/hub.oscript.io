@@ -59,7 +59,8 @@ server {
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Host $host;
-        proxy_pass http://opm_hub:5000;
+        set target_url="http://opm_hub:5000";
+        proxy_pass $target_url; 
     }
 
     include /etc/nginx/ssl_conf/options-ssl-nginx.conf;
