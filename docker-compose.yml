@@ -6,7 +6,6 @@ services:
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"    
     links:
       - "jenkins"
-    #  - "opm_database"
     ports:
       - "80:80"
       - "443:443"
@@ -18,25 +17,11 @@ services:
     depends_on:
       - opm_hub
       - site
-      - site-dev
       - certbot
   
   site:
     build: web/site
     image: site_osweb
-    ports:
-      - "5000"
-    environment:
-      - OS_CONTENT_DIRECTORY=/app/content
-      - OS_DOWNLOAD_DIRECTORY
-    volumes:
-      - web_content:/var/www/
-    depends_on:
-      - opm_hub
-
-  site-dev:
-    build: web/site-dev
-    image: site_osweb:dev
     ports:
       - "5000"
     environment:
