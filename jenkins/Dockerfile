@@ -26,7 +26,7 @@ RUN locale -a
 
 # Дополнительные пакеты поставим в отдельный слой, чтобы
 # зафиксировать долгую установку mono и не выполнять ее каждый раз при сборке.
-RUN apt-get -y install rsync sudo \
+RUN apt-get -y install rsync sudo wget \
 	&& wget https://oscript.io/downloads/1_7_0/x64/onescript-engine_1.7.0_all.deb \
 	&& dpkg -i onescript-engine_1.7.0_all.deb \
 	&& rm onescript-engine_1.7.0_all.deb \
