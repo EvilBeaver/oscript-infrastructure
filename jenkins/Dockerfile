@@ -36,4 +36,6 @@ RUN apt-get -y install rsync sudo wget \
 RUN mkdir -p /etc/sudoers.d && \
 	echo 'jenkins ALL=(root) NOPASSWD: /usr/bin/rsync' >> /etc/sudoers.d/10-jenkins
 
+COPY daemon.json /etc/docker/daemon.json
+
 USER jenkins
