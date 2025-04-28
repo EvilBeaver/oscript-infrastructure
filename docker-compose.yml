@@ -15,6 +15,7 @@ services:
     depends_on:
       - opm_hub
       - site
+      - new_site
       - certbot
   
   site:
@@ -29,6 +30,13 @@ services:
       - web_content:/var/www/
     depends_on:
       - opm_hub
+
+  new_site:
+    image: oscript/backend
+    ports:
+      - "3030"
+    volumes:
+      - web_content:/var/www/
 
   opm_hub:
     image: evilbeaver/os-hub:10
