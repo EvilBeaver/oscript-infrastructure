@@ -15,7 +15,6 @@ services:
     depends_on:
       - opm_hub
       - site
-      - new_site
       - certbot
   
   # site:
