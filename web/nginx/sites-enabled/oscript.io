@@ -30,26 +30,16 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     client_max_body_size 50M;
 
-
     proxy_redirect off;
     
     resolver 127.0.0.11 valid=30s;
 
-    location /api {
-        proxy_set_header X-Real-IP  $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
-        set $target_url http://new_site:3030;
-        proxy_pass $target_url; 
-    }
-    
     location / {
         proxy_set_header X-Real-IP  $remote_addr;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Host $host;
-        set $target_url http://site:5000;
+        set $target_url http://new_site:3030;
         proxy_pass $target_url; 
     }
 
