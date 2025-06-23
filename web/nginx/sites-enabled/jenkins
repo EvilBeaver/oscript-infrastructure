@@ -8,7 +8,7 @@ server {
     }
 
     location / {
-        return 302 https://$host$request_uri;
+        return 301 https://$host$request_uri;
     }
 }
 
