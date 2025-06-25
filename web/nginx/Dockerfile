@@ -11,7 +11,8 @@ COPY sites-enabled /etc/nginx/sites-enabled
 RUN rm /etc/nginx/sites-enabled/default
 
 # Самоподписанный сертификат для default-сервера
-RUN openssl req -x509 -nodes -newkey rsa:2048 -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt -subj "/C=RU/ST=Serpukhov/L=Serpukhov/O=OneScript./OU=OneScript/CN=oscript.io"
+RUN mkdir /etc/nginx/ssl && \
+    openssl req -x509 -nodes -newkey rsa:2048 -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt -subj "/C=RU/ST=Serpukhov/L=Serpukhov/O=OneScript./OU=OneScript/CN=oscript.io"
 
 VOLUME /var/www
 
