@@ -6,6 +6,8 @@ server
 
     ssl_certificate /etc/nginx/ssl/nginx.crt;
     ssl_certificate_key /etc/nginx/ssl/nginx.key;
-    ssl_session_tickets off;
-    ssl_reject_handshake on;
+    #ssl_session_tickets off;
+    #ssl_reject_handshake on;
+    
+    return 444;
 }

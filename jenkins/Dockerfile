@@ -34,7 +34,7 @@ RUN apt-get -y install rsync sudo wget \
 	&& chmod +x /usr/local/bin/docker-compose
 
 RUN mkdir -p /etc/sudoers.d && \
-	echo 'jenkins ALL=(root) NOPASSWD: /usr/bin/rsync' >> /etc/sudoers.d/10-jenkins
+	echo 'jenkins ALL=(root) NOPASSWD: /usr/bin/rsync, /bin/mkdir' >> /etc/sudoers.d/10-jenkins
 
 COPY daemon.json /etc/docker/daemon.json
 
