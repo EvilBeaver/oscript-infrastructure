@@ -17,19 +17,6 @@ services:
       - site
       - certbot
   
-  # site:
-  #   build: web/site
-  #   image: site_osweb
-  #   ports:
-  #     - "5000"
-  #   environment:
-  #     - OS_CONTENT_DIRECTORY=/app/content
-  #     - OS_DOWNLOAD_DIRECTORY
-  #   volumes:
-  #     - web_content:/var/www/
-  #   depends_on:
-  #     - opm_hub
-
   site:
     image: oscript/backend
     ports:
@@ -38,7 +25,7 @@ services:
       - web_content:/var/www/
 
   opm_hub:
-    image: evilbeaver/os-hub:10
+    image: evilbeaver/os-hub:11
     ports:
       - "5000"
     environment:
