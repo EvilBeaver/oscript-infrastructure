@@ -8,7 +8,6 @@ RUN cat /tmp/cat_me_to_fastcgi_params >> /etc/nginx/fastcgi_params && rm /tmp/ca
 
 COPY ssl_conf /etc/nginx/ssl_conf
 COPY sites-enabled /etc/nginx/sites-enabled
-RUN rm /etc/nginx/sites-enabled/default
 
 # Самоподписанный сертификат для default-сервера
 RUN mkdir /etc/nginx/ssl && \
