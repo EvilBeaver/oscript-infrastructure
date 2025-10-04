@@ -7,11 +7,14 @@ FROM jenkins/jenkins:latest
 
 # slave должен иметь mono
 USER root
-RUN apt-get clean && apt-get update && \
-    apt-key adv --no-tty --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
-	&& echo "deb http://download.mono-project.com/repo/debian stable-stretch main" | tee /etc/apt/sources.list.d/mono-official.list \
-	&& apt-get update \
-	&& apt-get -y install mono-complete
+RUN apt -y install dirmngr ca-certificates gnupg
+RUN gpg --homedir /tmp --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/mono-official-archive-keyring.gpg \
+    --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF \
+    && chmod +r /usr/share/keyrings/mono-official-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/mono-official-archive-keyring.gpg] https://download.mono-project.com/repo/debian stable-buster main" \
+    | tee /etc/apt/sources.list.d/mono-official-stable.list && apt update
+
+RUN apt -y install mono-complete
 
 # slave должен иметь docker
 RUN curl -sSL https://get.docker.com/ | sh \
@@ -27,10 +30,10 @@ RUN locale -a
 # Дополнительные пакеты поставим в отдельный слой, чтобы
 # зафиксировать долгую установку mono и не выполнять ее каждый раз при сборке.
 RUN apt-get -y install rsync sudo wget \
-	&& wget https://oscript.io/downloads/1_7_0/x64/onescript-engine_1.7.0_all.deb \
-	&& dpkg -i onescript-engine_1.7.0_all.deb \
-	&& rm onescript-engine_1.7.0_all.deb \
-	&& curl -L https://github.com/docker/compose/releases/download/1.22.0-rc2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose \
+	&& wget https://oscript.io/downloads/1_9_3/x64/onescript-engine_1.9.3_all.deb \
+	&& dpkg -i onescript-engine_1.9.3_all.deb \
+	&& rm onescript-engine_1.9.3_all.deb \
+	&& curl -L https://github.com/docker/compose/releases/download/2.40.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose \
 	&& chmod +x /usr/local/bin/docker-compose
 
 RUN mkdir -p /etc/sudoers.d && \
