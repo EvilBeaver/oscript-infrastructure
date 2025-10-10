@@ -1,4 +1,0 @@
-[submodule "web/site"]
-	path = web/site
-	url = https://github.com/otymko/OneScript.WebSite.git
-
