@@ -25,7 +25,7 @@ services:
       - web_content:/var/www/
 
   opm_hub:
-    image: evilbeaver/os-hub:11
+    image: evilbeaver/os-hub:12
     ports:
       - "5000"
     environment:
