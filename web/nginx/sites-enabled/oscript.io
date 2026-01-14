@@ -3,6 +3,8 @@ server {
     listen [::]:80;
     server_name oscript.io www.oscript.io;
 
+    access_log /var/log/nginx/access.log with_host;
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
@@ -17,6 +19,8 @@ server {
     listen [::]:443 ssl http2;
     server_name oscript.io www.oscript.io;
     root /var/www/oscript.io;
+
+    access_log /var/log/nginx/access.log with_host;
 
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";

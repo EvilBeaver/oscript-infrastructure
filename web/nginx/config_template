@@ -3,6 +3,8 @@ server {
     listen [::]:80;
     server_name [$Sitename];
 
+    access_log /var/log/nginx/access.log with_host;
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
@@ -17,6 +19,8 @@ server {
     listen [::]:443 ssl http2;
     server_name [$Sitename];
     root /var/www/[$Sitename];
+
+    access_log /var/log/nginx/access.log with_host;
 
 #    client_max_body_size 50M; Параметр имеет смысл указывать, если через nginx проходят файлы размера больше 1 Mb
 

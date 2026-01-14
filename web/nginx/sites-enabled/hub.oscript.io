@@ -3,6 +3,8 @@ server {
     listen [::]:80;
     server_name hub.oscript.io;
     
+    access_log /var/log/nginx/access.log with_host;
+
     client_max_body_size 50M;
 
     location /.well-known/acme-challenge/ {
@@ -37,6 +39,8 @@ server {
     listen [::]:443 ssl http2;
     server_name hub.oscript.io;
     root /var/www/hub.oscript.io;
+
+    access_log /var/log/nginx/access.log with_host;
 
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
