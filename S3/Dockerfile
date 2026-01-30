@@ -14,7 +14,6 @@ RUN chmod +x /entrypoint.sh
 # Настройки по умолчанию (можно переопределить при запуске через -e)
 ENV SYNC_INTERVAL="12h"
 ENV SYNC_SUBDIR="hub.oscript.io"
-ENV RCLONE_REMOTE_NAME="yandex"
 ENV S3_BUCKET=""
 ENV S3_ENDPOINT="https://storage.yandexcloud.net"
 ENV S3_ACCESS_KEY_ID=""

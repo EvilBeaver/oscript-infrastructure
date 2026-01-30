@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Настройка rclone через переменные окружения (чтобы не возиться с конфиг-файлом)
-export RCLONE_CONFIG_${RCLONE_REMOTE_NAME}_TYPE=s3
-export RCLONE_CONFIG_${RCLONE_REMOTE_NAME}_PROVIDER=Other
-export RCLONE_CONFIG_${RCLONE_REMOTE_NAME}_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
-export RCLONE_CONFIG_${RCLONE_REMOTE_NAME}_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
-export RCLONE_CONFIG_${RCLONE_REMOTE_NAME}_ENDPOINT=${S3_ENDPOINT}
-export RCLONE_CONFIG_${RCLONE_REMOTE_NAME}_REGION=${S3_REGION}
+# Настройка rclone через переменные окружения
+# Имя remote в env-переменных должно быть в UPPERCASE, а в команде - в lowercase
+export RCLONE_CONFIG_YANDEX_TYPE=s3
+export RCLONE_CONFIG_YANDEX_PROVIDER=Other
+export RCLONE_CONFIG_YANDEX_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+export RCLONE_CONFIG_YANDEX_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
+export RCLONE_CONFIG_YANDEX_ENDPOINT=${S3_ENDPOINT}
+export RCLONE_CONFIG_YANDEX_REGION=${S3_REGION}
 
 if [ -z "$S3_BUCKET" ]; then
     echo "Ошибка: Переменная S3_BUCKET не задана."
@@ -22,7 +23,6 @@ fi
 
 echo "--- Запуск воркера синхронизации S3 ---"
 echo "Интервал: $SYNC_INTERVAL"
-echo "Удаленный репозиторий: $RCLONE_REMOTE_NAME"
 echo "Бакет: $S3_BUCKET"
 echo "Локальный каталог: $SOURCE_DIR"
 
@@ -30,7 +30,7 @@ echo "Локальный каталог: $SOURCE_DIR"
 do_sync() {
     echo "$(date): Начало синхронизации..."
     # Используем copy, чтобы не удалять файлы в облаке, если они удалены локально
-    rclone copy "$SOURCE_DIR" ${RCLONE_REMOTE_NAME}:${S3_BUCKET} --progress
+    rclone copy "$SOURCE_DIR" yandex:${S3_BUCKET} --progress
     EXIT_CODE=$?
     if [ $EXIT_CODE -eq 0 ]; then
         echo "$(date): Синхронизация завершена успешно."
