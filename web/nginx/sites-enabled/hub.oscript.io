@@ -5,7 +5,7 @@ server {
     
     access_log /var/log/nginx/access.log with_host;
 
-    client_max_body_size 50M;
+    client_max_body_size 100M;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
