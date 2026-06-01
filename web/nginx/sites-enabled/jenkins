@@ -38,11 +38,24 @@ server {
     resolver 127.0.0.11 valid=30s;
 
     location / {
+        sendfile off;
+
         set $target_url http://jenkins:8080;
-        proxy_pass $target_url; 
+        proxy_pass $target_url;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $http_host;
-        proxy_set_header X-NginX-Proxy true;    
+        proxy_set_header X-NginX-Proxy true;
+
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_connect_timeout 90;
+        proxy_send_timeout 90;
+        proxy_read_timeout 90;
     }
 
     include /etc/nginx/ssl_conf/options-ssl-nginx.conf;
