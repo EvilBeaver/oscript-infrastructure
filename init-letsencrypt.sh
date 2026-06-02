@@ -5,7 +5,7 @@ if ! [ -x "$(command -v docker-compose)" ]; then
   exit 1
 fi
 
-domains=(api.oscript.io hub.oscript.io oscript.io build.oscript.io s3.oscript.io)
+domains=(hub.oscript.io oscript.io build.oscript.io s3.oscript.io)
 rsa_key_size=4096
 data_path="./web/certbot"
 ssl_conf_path="./web/nginx/ssl_conf"
@@ -40,7 +40,8 @@ for domain in "${domains[@]}"; do
 done
 
 echo "### Starting nginx ..."
-docker-compose up --force-recreate -d nginx
+# Start only nginx to avoid starting certbot renew loop (it locks certbot)
+docker-compose up --force-recreate --no-deps -d nginx
 echo
 
 for domain in "${domains[@]}"; do
