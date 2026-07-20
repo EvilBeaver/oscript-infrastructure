@@ -27,7 +27,7 @@ services:
       - web_content:/var/www/
 
   opm_hub:
-    image: evilbeaver/os-hub:11
+    image: evilbeaver/os-hub:15
     ports:
       - "5000"
     environment:
@@ -39,13 +39,17 @@ services:
       - OSHUB_DEFAULT_USER
       - OSHUB_DEFAULT_PASSWORD
       - OSHUB_TG_NOTIFICATION
-      - TELEGRAM_TOKEN
+      - CHAT_NOTIFIER_URL
+      - CHAT_NOTIFIER_LOGIN
+      - CHAT_NOTIFIER_TOKEN
       - TELEGRAM_GROUP_ID
     volumes:
       - web_content:/var/www/
-    restart: always
+    restart: unless-stopped
     depends_on:
       - opm_hub_db
+    ulimits:
+      core: 0
 
   jenkins:
     build: jenkins
