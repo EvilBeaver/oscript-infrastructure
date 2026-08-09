@@ -41,4 +41,6 @@ RUN mkdir -p /etc/sudoers.d && \
 
 COPY daemon.json /etc/docker/daemon.json
 
+ENV JENKINS_JAVA_OPTS -Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteArtifacts=true -Dio.jenkins.plugins.artifact_manager_jclouds.s3.S3BlobStoreConfig.deleteStashes=true
+
 USER jenkins
