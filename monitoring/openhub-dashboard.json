@@ -1,79 +1,95 @@
 {
   "uid": "openhub",
   "title": "OpenHub — наблюдаемость",
-  "description": "Что хаб делает прямо сейчас: темп запросов, задержка и ошибки по маршрутам, методы контроллеров, логи и карта сервисов. Из любой панели есть переход в трассу.",
+  "description": "Хаб пакетов OpenHub: что он делает сейчас, как себя чувствуют база и сервер, что пишет в журнал. Метрики хаба приходят раз в минуту; перезапуск хаба графики не рвёт, а фиолетовые пунктиры отмечают запуски хаба. Разрыв на графиках хаба — хаб не выгружал метрики, это видно на панели «Давность метрик хаба».",
   "tags": [
     "openhub"
   ],
   "timezone": "browser",
   "editable": true,
+  "graphTooltip": 1,
   "schemaVersion": 39,
-  "version": 4,
-  "refresh": "10s",
+  "version": 5,
+  "refresh": "30s",
   "time": {
-    "from": "now-30m",
+    "from": "now-1h",
     "to": "now"
   },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
   "templating": {
+    "list": []
+  },
+  "annotations": {
     "list": [
       {
-        "name": "service",
-        "label": "Служба",
-        "type": "query",
+        "builtIn": 1,
         "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
+          "type": "grafana",
+          "uid": "-- Grafana --"
         },
-        "query": {
-          "qryType": 1,
-          "query": "label_values(traces_spanmetrics_calls_total, service)",
-          "refId": "СписокСлужб"
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
         },
-        "definition": "label_values(traces_spanmetrics_calls_total, service)",
-        "current": {
-          "text": "openhub",
-          "value": "openhub"
+        "enable": true,
+        "hide": false,
+        "iconColor": "purple",
+        "name": "Запуск хаба",
+        "expr": "{service_name=\"openhub\"} |= \"Стартовые задачи завершены\"",
+        "target": {
+          "refId": "Anno",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "expr": "{service_name=\"openhub\"} |= \"Стартовые задачи завершены\""
         },
-        "includeAll": false,
-        "multi": false,
-        "refresh": 2,
-        "sort": 1
+        "titleFormat": "Хаб запущен",
+        "textFormat": "{{host_name}}"
       }
     ]
   },
   "panels": [
     {
       "type": "row",
-      "id": 100,
-      "title": "Маршруты: темп, задержка, ошибки",
+      "id": 1,
+      "title": "Состояние хаба",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 0
       },
-      "collapsed": false,
       "panels": []
     },
     {
       "type": "stat",
-      "id": 1,
+      "id": 2,
       "title": "Запросов в секунду",
-      "description": "Суммарный темп обслуженных запросов. Считается генератором метрик Tempo по серверным спанам winow.",
+      "description": "Сколько запросов в секунду хаб сейчас обрабатывает: сумма по всем маршрутам, считают сами методы контроллеров (счётчики kontroller_*_counted). Перезапуск хаба ряд не рвёт. Хаб выгружает метрики раз в минуту, поэтому цифра отстаёт от жизни на 1–2 минуты; под тяжёлой нагрузкой выгрузка встаёт, и цифра замирает — тогда смотрите nginx в ряду «Трафик».",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 0,
-        "y": 1
-      },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
-          "decimals": 2,
           "color": {
             "mode": "thresholds"
           },
@@ -81,11 +97,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "blue",
+                "color": "text",
                 "value": null
               }
             ]
-          }
+          },
+          "decimals": 2
         },
         "overrides": []
       },
@@ -97,9 +114,13 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto",
+        "textMode": "value",
+        "colorMode": "none",
         "graphMode": "area",
-        "colorMode": "value"
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
       },
       "targets": [
         {
@@ -109,33 +130,168 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(traces_spanmetrics_calls_total{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))",
-          "legendFormat": "всего",
-          "range": true
+          "expr": "sum(rate(max_over_time({__name__=~\"kontroller_.+_counted_total\", service_name=\"openhub\"}[5m])[$__rate_interval:$__interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "запросов в секунду"
         }
-      ]
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      }
     },
     {
       "type": "stat",
-      "id": 2,
-      "title": "Доля ошибочных запросов",
-      "description": "Отношение спанов со статусом Error ко всем серверным спанам. Статус Error winow ставит только на пятисотке — четырёхсотка это ответ, а не отказ.",
+      "id": 3,
+      "title": "Сбоев за период",
+      "description": "Сколько запросов хаб не смог обслужить за выбранный период: строки журнала «Сбой запроса …» (их пишет обработчик сбоя хаба, по строке на запрос). Считается по журналу в Loki, поэтому точнее счётчиков отказов в метриках.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({service_name=\"openhub\"} |= \"Сбой запроса\" [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "id": 4,
+      "title": "Таймаутов пула БД",
+      "description": "Сколько раз за выбранный период поток хаба так и не дождался соединения с базой из пула (db.client.connection.timeouts, предел ожидания — 30 с). Считается за весь выбранный период, а не в секунду. Каждый такой таймаут — упавший запрос или фоновая задача.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(sum_over_time((clamp_min(last_over_time(db_client_connection_timeouts_total{service_name=\"openhub\"}[3h]) - (last_over_time(db_client_connection_timeouts_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(db_client_connection_timeouts_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
       "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 6,
+        "h": 4,
+        "w": 4,
+        "x": 8,
         "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "id": 5,
+      "title": "Ждут соединения",
+      "description": "Сколько потоков хаба прямо сейчас стоят в очереди за соединением с базой. Ноль — норма; больше нуля — пул исчерпан, подробности в ряду «База данных».",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit",
-          "decimals": 2,
-          "min": 0,
-          "max": 1,
+          "unit": "none",
           "color": {
             "mode": "thresholds"
           },
@@ -148,11 +304,461 @@
               },
               {
                 "color": "orange",
-                "value": 0.01
+                "value": 1
               },
               {
                 "color": "red",
-                "value": 0.05
+                "value": 10
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum((db_client_connection_pending_requests{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(db_client_connection_pending_requests{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "ждут"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "id": 6,
+      "title": "Скачиваний за период",
+      "description": "Сколько пакетов скачали за выбранный период: прирост счётчика oshub_downloads_total по всем процессам хаба. Счётчик живёт в процессе и обнуляется при перезапуске — increase это учитывает.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(oshub_downloads_total{service_name=\"openhub\"}[$__range]))",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "id": 7,
+      "title": "Фоновых заданий",
+      "description": "Размер реестра фоновых заданий winow у текущего процесса хаба (oshub_background_jobs). Нормальная картина — пила: реестр растёт и очищается задачей уборки (oshub.jobs.registry_gc_interval_sec). Рост без спадов — утечка.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_background_jobs{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_background_jobs{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "заданий"
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "id": 8,
+      "title": "Пулов",
+      "description": "Сколько пулов в хабе (датчик oshub_pools, читается из базы).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_pools{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_pools{service_name=\"openhub\"}))))",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 5
+      }
+    },
+    {
+      "type": "stat",
+      "id": 9,
+      "title": "Пакетов",
+      "description": "Сколько пакетов во всех пулах (oshub_packages).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_packages{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_packages{service_name=\"openhub\"}))))",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 5
+      }
+    },
+    {
+      "type": "stat",
+      "id": 10,
+      "title": "Версий",
+      "description": "Сколько опубликованных версий пакетов во всех пулах (oshub_versions).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_versions{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_versions{service_name=\"openhub\"}))))",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 5
+      }
+    },
+    {
+      "type": "stat",
+      "id": 11,
+      "title": "Учётных записей",
+      "description": "Сколько учётных записей пользователей (oshub_users).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_users{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_users{service_name=\"openhub\"}))))",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 5
+      }
+    },
+    {
+      "type": "stat",
+      "id": 12,
+      "title": "Занято в хранилище",
+      "description": "Сколько места занимают артефакты пакетов в хранилище (S3), сумма по всем пулам (oshub_storage_used_bytes).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
               }
             ]
           }
@@ -167,9 +773,13 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto",
-        "graphMode": "area",
-        "colorMode": "value"
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
       },
       "targets": [
         {
@@ -179,128 +789,482 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(sum(rate(traces_spanmetrics_calls_total{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\", status_code=\"STATUS_CODE_ERROR\"}[$__rate_interval])) or vector(0)) / clamp_min(sum(rate(traces_spanmetrics_calls_total{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])), 0.0000001)",
-          "legendFormat": "доля ошибок",
-          "range": true
+          "expr": "sum((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"}))))",
+          "range": false,
+          "instant": true
         }
-      ]
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 5
+      }
     },
     {
-      "type": "timeseries",
-      "id": 3,
-      "title": "Задержка запросов: p50, p95, p99",
-      "description": "Квантили гистограммы traces_spanmetrics_latency. Точки-экземпляры на графике ведут в конкретную трассу.",
+      "type": "stat",
+      "id": 13,
+      "title": "Скачиваний всего",
+      "description": "Сколько раз пакеты скачивали за всю жизнь хаба — по базе (oshub_downloads_all_time_total).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_downloads_all_time_total{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_downloads_all_time_total{service_name=\"openhub\"}))))",
+          "range": false,
+          "instant": true
+        }
+      ],
       "gridPos": {
-        "h": 12,
-        "w": 12,
-        "x": 12,
-        "y": 1
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 5
+      }
+    },
+    {
+      "type": "row",
+      "id": 14,
+      "title": "Трафик",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 15,
+      "title": "Запросы в секунду: хаб и весь сервер",
+      "description": "Зелёная — запросы, которые обработал хаб (сумма по маршрутам, считают методы контроллеров). Синяя — все запросы nginx по всем сайтам сервера (stub_status): хаб, старый хаб, oscript.io, jenkins и прочие, поэтому она выше. Красная — сбои запросов хаба по журналу («Сбой запроса …»). Метрики хаба приходят раз в минуту; если под нагрузкой зелёная обрывается, а синяя идёт дальше — хаб перестал выгружать метрики, а не перестал отвечать (панель «Давность метрик хаба» в ряду телеметрии).",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "хаб: обработано"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nginx: все сайты сервера"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "хаб: сбои"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(max_over_time({__name__=~\"kontroller_.+_counted_total\", service_name=\"openhub\"}[5m])[$__rate_interval:$__interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб: обработано"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(nginx_requests_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "nginx: все сайты сервера"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate({service_name=\"openhub\"} |= \"Сбой запроса\" [$__auto])) or vector(0)",
+          "queryType": "range",
+          "legendFormat": "хаб: сбои"
+        }
+      ],
+      "interval": "1m",
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 16,
+      "title": "Соединения nginx",
+      "description": "Открытые клиентские соединения nginx по всем сайтам сервера (stub_status). «Всего» = читают запрос + отдают ответ + простаивают в keep-alive. Рост «отдают ответ» при ровном трафике — бэкенд отвечает медленнее.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "active"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "всего"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "reading"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "читают запрос"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "writing"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "отдают ответ"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "waiting"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "простаивают (keep-alive)"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (state) (nginx_connections_current)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{state}}"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 17,
+      "title": "Запросы в секунду по маршрутам — 10 самых нагруженных за период",
+      "description": "Точка маршрута — метод контроллера хаба: «Класс.Метод», так же называется внутренний спан в Tempo. В десятку попадают маршруты с наибольшим числом вызовов за выбранный период.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "right",
+          "displayMode": "table",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (code_namespace, code_function_name) (rate(max_over_time({__name__=~\"kontroller_.+_counted_total\", service_name=\"openhub\"}[5m])[$__rate_interval:$__interval])) and on (code_namespace, code_function_name) topk(10, sum by (code_namespace, code_function_name) (increase(max_over_time({__name__=~\"kontroller_.+_counted_total\", service_name=\"openhub\"}[5m])[$__range:1m] @ end())))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{code_namespace}}.{{code_function_name}}"
+        }
+      ],
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 18,
+      "title": "Среднее время обработки по маршрутам — 10 самых медленных за период",
+      "description": "Среднее время вызова метода контроллера: сумма длительностей, делённая на число вызовов. Жирная линия — среднее по всем запросам хаба. Шкала логарифмическая: миллисекунды и минуты видны на одном графике. Квантилей (p95) здесь нет намеренно: у гистограмм маршрутов миллисекундные границы корзин при секундных значениях, всё падает в первую корзину, и p95 показал бы границу корзины, а не задержку. Разрывы — у маршрута в это время не было вызовов.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
           "custom": {
             "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "p50",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
-          "legendFormat": "p50",
-          "range": true
-        },
-        {
-          "refId": "p95",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
-          "legendFormat": "p95",
-          "range": true
-        },
-        {
-          "refId": "p99",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
-          "legendFormat": "p99",
-          "range": true
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "id": 4,
-      "title": "Темп запросов по маршрутам",
-      "description": "Разбивка по имени серверного спана — «метод шаблон_маршрута», а не по конкретному адресу.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 7
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 12,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
             "stacking": {
-              "mode": "normal",
+              "mode": "none",
               "group": "A"
             },
-            "showPoints": "never"
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "весь хаб"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
-          "displayMode": "table",
-          "placement": "right",
           "showLegend": true,
+          "placement": "right",
+          "displayMode": "table",
           "calcs": [
+            "mean",
+            "max",
             "lastNotNull"
-          ]
+          ],
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
@@ -315,31 +1279,42 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))",
-          "legendFormat": "{{span_name}}",
-          "range": true
+          "expr": "(sum by (code_namespace, code_function_name) (rate(max_over_time({__name__=~\"kontroller_.+_duration_seconds_sum\", service_name=\"openhub\"}[5m])[$__rate_interval:$__interval])) / sum by (code_namespace, code_function_name) (rate(max_over_time({__name__=~\"kontroller_.+_duration_seconds_count\", service_name=\"openhub\"}[5m])[$__rate_interval:$__interval]))) and on (code_namespace, code_function_name) topk(10, sum by (code_namespace, code_function_name) (increase(max_over_time({__name__=~\"kontroller_.+_duration_seconds_sum\", service_name=\"openhub\"}[5m])[$__range:1m] @ end())) / sum by (code_namespace, code_function_name) (increase(max_over_time({__name__=~\"kontroller_.+_duration_seconds_count\", service_name=\"openhub\"}[5m])[$__range:1m] @ end())))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{code_namespace}}.{{code_function_name}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(max_over_time({__name__=~\"kontroller_.+_duration_seconds_sum\", service_name=\"openhub\"}[5m])[$__rate_interval:$__interval])) / sum(rate(max_over_time({__name__=~\"kontroller_.+_duration_seconds_count\", service_name=\"openhub\"}[5m])[$__rate_interval:$__interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "весь хаб"
         }
-      ]
+      ],
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      }
     },
     {
       "type": "table",
-      "id": 5,
-      "title": "Ответы по маршрутам и кодам",
-      "description": "Сколько запросов на каком маршруте чем закончилось за выбранный интервал. Ошибкой спан считается только на пятисотке, поэтому четырёхсотки видны здесь, а не в доле ошибок.",
+      "id": 19,
+      "title": "Маршруты за выбранный период",
+      "description": "Все точки маршрута, у которых за выбранный период были вызовы: сколько раз вызвали, сколько это в среднем в секунду и сколько в среднем занимал вызов. Клик по заголовку сортирует.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 13
-      },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "decimals": 0,
           "custom": {
             "align": "auto",
             "cellOptions": {
@@ -347,359 +1322,273 @@
             }
           }
         },
-        "overrides": []
-      },
-      "options": {
-        "showHeader": true,
-        "sortBy": [
+        "overrides": [
           {
-            "displayName": "Запросов",
-            "desc": true
+            "matcher": {
+              "id": "byName",
+              "options": "Вызовов"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "В секунду"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Среднее время"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
           }
         ]
       },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Вызовов",
+            "desc": true
+          }
+        ],
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (code_namespace, code_function_name) (increase(max_over_time({__name__=~\"kontroller_.+_counted_total\", service_name=\"openhub\"}[5m])[$__range:1m])) > 0",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (code_namespace, code_function_name) (increase(max_over_time({__name__=~\"kontroller_.+_counted_total\", service_name=\"openhub\"}[5m])[$__range:1m])) / $__range_s > 0",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (code_namespace, code_function_name) (increase(max_over_time({__name__=~\"kontroller_.+_duration_seconds_sum\", service_name=\"openhub\"}[5m])[$__range:1m])) / sum by (code_namespace, code_function_name) (increase(max_over_time({__name__=~\"kontroller_.+_duration_seconds_count\", service_name=\"openhub\"}[5m])[$__range:1m])) > 0",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
       "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
               "Time": true
             },
+            "indexByName": {
+              "code_namespace": 0,
+              "code_function_name": 1,
+              "Value #A": 2,
+              "Value #B": 3,
+              "Value #C": 4
+            },
             "renameByName": {
-              "span_name": "Маршрут",
-              "http_response_status_code": "Код ответа",
-              "Value": "Запросов"
+              "code_namespace": "Контроллер",
+              "code_function_name": "Метод",
+              "Value #A": "Вызовов",
+              "Value #B": "В секунду",
+              "Value #C": "Среднее время"
             }
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "fieldName": "Вызовов",
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                }
+              }
+            ],
+            "type": "exclude",
+            "match": "any"
           }
         }
       ],
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "instant": true,
-          "expr": "sum by (span_name, http_response_status_code) (increase(traces_spanmetrics_calls_total{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[$__range]))",
-          "range": false
-        }
-      ]
-    },
-    {
-      "type": "table",
-      "id": 6,
-      "title": "Свежие запросы",
-      "description": "Серверные спаны выбранной службы из Tempo: имя спана у хаба — «метод маршрут», колонки — http.route, url.path и код ответа. Список трасс тут не годится: он показывает имя корня, а корень — nginx, который маршрутов не знает. Клик по строке открывает трассу целиком.",
-      "datasource": {
-        "type": "tempo",
-        "uid": "tempo"
-      },
       "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 13
-      },
-      "options": {
-        "showHeader": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "tempo",
-            "uid": "tempo"
-          },
-          "queryType": "traceql",
-          "query": "{ resource.service.name = \"$service\" && kind = server } | select(span.http.route, span.url.path, span.http.response.status_code)",
-          "limit": 20,
-          "spss": 1,
-          "tableType": "spans"
-        }
-      ]
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      }
     },
     {
       "type": "row",
-      "id": 200,
-      "title": "Методы контроллеров: метрики самого хаба",
+      "id": 20,
+      "title": "База данных",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 49
       },
-      "collapsed": false,
       "panels": []
     },
     {
       "type": "timeseries",
-      "id": 7,
-      "title": "Задержка методов, среднее",
-      "description": "Среднее время вызова точки маршрута: сумма длительностей, делённая на число вызовов. Не p95: autumn-opentelemetry 1.1.0 пишет длительность в секундах, но границы корзин гистограмме не задаёт, и SDK ставит умолчательные миллисекундные ([0, 5, 10 … 10000]) — все секундные значения падают в первую корзину, и histogram_quantile вернул бы не задержку, а границу корзины. Среднее от границ не зависит; p95 вернётся, когда библиотека передаст секундные границы (issues/ЧЕРНОВИК-AUTUMN-OTEL-секунды-при-миллисекундных-границах.md). Отбор code_namespace!=\"\" оставляет метрики точек маршрута: под ту же маску имён попали гистограммы базы данных, у которых этой метки нет. Окно rate — 5 мин фиксировано: метрики хаба экспортируются раз в 60 с, и авто-интервал Grafana на коротких диапазонах пустеет.",
+      "id": 21,
+      "title": "Пул соединений с базой",
+      "description": "Соединения пула entity у текущего процесса хаба: занятые, свободные и предел пула (РазмерПула, OSHUB_DB_POOL_SIZE). «Ждут соединения» — потоки, которым не хватило соединения. Занято упёрлось в предел и растут ждущие — пул мал для нагрузки или запросы к базе медленные.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 21
-      },
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "unit": "none",
+          "min": 0,
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
             "fillOpacity": 0,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "calcs": [
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
           },
-          "editorMode": "code",
-          "expr": "sum by (code_namespace, code_function_name) (rate({__name__=~\".+_duration_seconds_sum\", service_name=\"$service\", code_namespace!=\"\"}[5m])) / sum by (code_namespace, code_function_name) (rate({__name__=~\".+_duration_seconds_count\", service_name=\"$service\", code_namespace!=\"\"}[5m]))",
-          "legendFormat": "{{code_namespace}}.{{code_function_name}}",
-          "range": true
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "id": 8,
-      "title": "Вызовы методов в секунду",
-      "description": "Счётчики *.counted той же точки маршрута. Метка result отделяет успех от отказа. Окно rate — 5 мин фиксировано: метрики хаба экспортируются раз в 60 с, и авто-интервал Grafana на коротких диапазонах пустеет.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 21
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 12,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
+          "color": {
+            "mode": "palette-classic"
           },
-          "editorMode": "code",
-          "expr": "sum by (code_namespace, code_function_name, result) (rate({__name__=~\".+_counted_total\", service_name=\"$service\"}[5m]))",
-          "legendFormat": "{{code_namespace}}.{{code_function_name}} — {{result}}",
-          "range": true
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "id": 250,
-      "title": "База данных: операции и хранилища",
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 29
-      },
-      "collapsed": false,
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "id": 11,
-      "title": "Задержка обращений к СУБД, p95",
-      "description": "Гистограмма db.client.operation.duration наблюдателя источника данных entity (opentelemetry-instrumentation-entity). Разбивка по операции СУБД: SELECT, INSERT, COMMIT. Пусто — значит отключено otel.entity.enabled=false.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 30
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 0,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "calcs": [
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, db_operation_name) (rate(db_client_operation_duration_seconds_bucket{service_name=\"$service\"}[5m])))",
-          "legendFormat": "{{db_operation_name}}",
-          "range": true
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "id": 12,
-      "title": "Вызовы хранилищ сущностей, p95",
-      "description": "Гистограмма entity.repository.invocation.duration напильника слоя хранилищ. Разбивка по хранилищу и методу; метка entity_repository_state отделяет отказ от успеха. Пусто — значит отключено otel.entity.repository.enabled=false.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 30
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 0,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "calcs": [
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, entity_repository, code_function_name) (rate(entity_repository_invocation_duration_seconds_bucket{service_name=\"$service\"}[5m])))",
-          "legendFormat": "{{entity_repository}}.{{code_function_name}}",
-          "range": true
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "id": 13,
-      "title": "Пул соединений с БД",
-      "description": "Датчики db.client.connection.* наблюдателя источника данных entity: занятые и свободные соединения пула, его предел (РазмерПула) и потоки, ждущие соединения. Ожидающие выше нуля — пул мал для нагрузки; занятые у предела — то же самое, только раньше.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 30
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 0,
-            "showPoints": "never"
-          }
+          "decimals": 0
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "предел"
+              "options": "used"
             },
             "properties": [
+              {
+                "id": "displayName",
+                "value": "занято"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "idle"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "свободно"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "предел пула"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              },
               {
                 "id": "custom.lineStyle",
                 "value": {
@@ -709,6 +1598,25 @@
                     10
                   ]
                 }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ждут соединения"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
               }
             ]
           }
@@ -716,12 +1624,10 @@
       },
       "options": {
         "legend": {
-          "displayMode": "table",
-          "placement": "right",
           "showLegend": true,
-          "calcs": [
-            "max"
-          ]
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
         },
         "tooltip": {
           "mode": "multi",
@@ -736,9 +1642,10 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (db_client_connection_pool_name, db_client_connection_state) (db_client_connection_count{service_name=\"$service\"})",
-          "legendFormat": "{{db_client_connection_state}}",
-          "range": true
+          "expr": "sum by (db_client_connection_state) ((db_client_connection_count{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(db_client_connection_count{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{db_client_connection_state}}"
         },
         {
           "refId": "B",
@@ -747,9 +1654,10 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (db_client_connection_pool_name) (db_client_connection_max{service_name=\"$service\"})",
-          "legendFormat": "предел",
-          "range": true
+          "expr": "sum((db_client_connection_max{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(db_client_connection_max{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "предел пула"
         },
         {
           "refId": "C",
@@ -758,39 +1666,1888 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (db_client_connection_pool_name) (db_client_connection_pending_requests{service_name=\"$service\"})",
-          "legendFormat": "ожидают",
-          "range": true
+          "expr": "sum((db_client_connection_pending_requests{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(db_client_connection_pending_requests{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "ждут соединения"
         }
-      ]
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 50
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 22,
+      "title": "Ожидание свободного соединения",
+      "description": "Сколько поток ждёт соединение из пула (db.client.connection.wait_time): p95 и среднее. Корзины гистограммы — от 1 мс до 10 с; всё, что дольше 10 с, p95 показывает как 10 с, а среднее — как есть. Предел ожидания — 30 с, дальше таймаут.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(max_over_time(db_client_connection_wait_time_seconds_bucket{service_name=\"openhub\"}[5m])[$__rate_interval:$__interval])))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(max_over_time(db_client_connection_wait_time_seconds_sum{service_name=\"openhub\"}[5m])[$__rate_interval:$__interval])) / sum(rate(max_over_time(db_client_connection_wait_time_seconds_count{service_name=\"openhub\"}[5m])[$__rate_interval:$__interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "среднее"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 50
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 23,
+      "title": "Таймауты ожидания соединения",
+      "description": "Сколько раз в минуту поток так и не дождался соединения из пула (db.client.connection.timeouts, предел ожидания — 30 с): запрос или фоновая задача, которой это досталось, падает. Если хаб под нагрузкой не выгружал метрики, всё накопленное за паузу ложится на минуту, когда выгрузка пришла.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: /мин",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "таймаутов в минуту"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum(sum_over_time((clamp_min(last_over_time(db_client_connection_timeouts_total{service_name=\"openhub\"}[3h]) - (last_over_time(db_client_connection_timeouts_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(db_client_connection_timeouts_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__interval:1m])) or vector(0)) / ($__interval_ms / 60000)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "таймаутов в минуту"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 50
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 24,
+      "title": "Операции с базой в секунду",
+      "description": "Операции слоя данных entity в секунду по видам: Получить — выборка списка, ПолучитьОдно — одной сущности, Сохранить, Удалить, ВычислитьСКоннектором — агрегатный SQL (entity.operation.duration).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (entity_operation) (rate(max_over_time(entity_operation_duration_seconds_count{service_name=\"openhub\"}[5m])[$__rate_interval:$__interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{entity_operation}}"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 59
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 25,
+      "title": "Длительность запроса к СУБД",
+      "description": "Сколько идёт один SQL-запрос к PostgreSQL от отправки до ответа (db.client.operation.duration): p50, p95 и среднее по всем запросам. Корзины гистограммы секундные и живые, квантили честные с точностью до корзины (1, 5, 10, 50, 100, 500 мс, 1, 5, 10 с).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(max_over_time(db_client_operation_duration_seconds_bucket{service_name=\"openhub\"}[5m])[$__rate_interval:$__interval])))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(max_over_time(db_client_operation_duration_seconds_bucket{service_name=\"openhub\"}[5m])[$__rate_interval:$__interval])))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(max_over_time(db_client_operation_duration_seconds_sum{service_name=\"openhub\"}[5m])[$__rate_interval:$__interval])) / sum(rate(max_over_time(db_client_operation_duration_seconds_count{service_name=\"openhub\"}[5m])[$__rate_interval:$__interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "среднее"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 59
+      }
     },
     {
       "type": "row",
-      "id": 300,
-      "title": "Логи и карта сервисов",
+      "id": 26,
+      "title": "Ресурсы сервера",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 68
       },
-      "collapsed": false,
       "panels": []
     },
     {
-      "type": "logs",
-      "id": 9,
+      "type": "timeseries",
+      "id": 27,
+      "title": "Загрузка процессора",
+      "description": "Доля процессорного времени всех ядер сервера по видам работы; стопка целиком — общая загрузка. Сверху вниз стопки: программы, ядро ОС, iowait, steal, прочее. iowait — процессор ждёт диск (при активном свопе растёт первым); steal — время, отнятое гипервизором.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "max": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "программы (user)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ядро ОС (system)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ожидание диска (iowait)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "отнято гипервизором (steal)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "прочее (irq, softirq, nice)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_cpu_time_seconds_total{state=~\"user\"}[$__rate_interval])) / sum(rate(system_cpu_time_seconds_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "программы (user)"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_cpu_time_seconds_total{state=~\"system\"}[$__rate_interval])) / sum(rate(system_cpu_time_seconds_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "ядро ОС (system)"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_cpu_time_seconds_total{state=~\"wait\"}[$__rate_interval])) / sum(rate(system_cpu_time_seconds_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "ожидание диска (iowait)"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_cpu_time_seconds_total{state=~\"steal\"}[$__rate_interval])) / sum(rate(system_cpu_time_seconds_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "отнято гипервизором (steal)"
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_cpu_time_seconds_total{state=~\"softirq|interrupt|nice\"}[$__rate_interval])) / sum(rate(system_cpu_time_seconds_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "прочее (irq, softirq, nice)"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 69
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 28,
+      "title": "Средняя загрузка (load average)",
+      "description": "Сколько процессов в среднем готовы работать или ждут диск — за 1, 5 и 15 минут. Пунктир — число ядер: выше него процессам не хватает процессора (или они стоят в очереди к диску).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ядер"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_cpu_load_average_1m)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "за 1 мин"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_cpu_load_average_5m)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "за 5 мин"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_cpu_load_average_15m)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "за 15 мин"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(count by (cpu) (system_cpu_time_seconds_total))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "ядер"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 69
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 29,
+      "title": "Память",
+      "description": "Оперативная память сервера; стопка целиком — весь объём. «Занято» — память программ; «кэш» и «буферы» ядро отдаёт по первому требованию. Свободное у нуля и маленький кэш — памяти не хватает, дальше своп.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "занято"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "кэш файлов"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "буферы"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "свободно"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_memory_usage_bytes{state=\"used\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "занято"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_memory_usage_bytes{state=\"cached\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "кэш файлов"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_memory_usage_bytes{state=\"buffered\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "буферы"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_memory_usage_bytes{state=\"free\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "свободно"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 69
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 30,
+      "title": "Своп: занято",
+      "description": "Сколько свопа занято и его полный размер. Сам по себе занятый своп не страшен — страшно, когда идёт активный обмен (соседняя панель).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "размер свопа"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_paging_usage_bytes{state=\"used\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "занято"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(max by (state) (system_paging_usage_bytes))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "размер свопа"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 78
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 31,
+      "title": "Подкачка: обмен со свопом",
+      "description": "Сколько байт в секунду ядро читает из свопа и пишет в своп. Постоянный поток в обе стороны — трэшинг: памяти не хватает, сервер тормозит на диске. Коллектор (gopsutil) отдаёт pswpin/pswpout уже умноженными на 4 КиБ, поэтому это байты; страниц в секунду — значение, делённое на 4096.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "page_in"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "чтение из свопа"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "page_out"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "запись в своп"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (direction) (rate(system_paging_operations_total{type=\"major\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{direction}}"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 78
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 32,
+      "title": "Диск: чтение и запись",
+      "description": "Байт в секунду, прочитанных с диска и записанных на диск сервера (весь диск, без разделов). Обмен со свопом входит сюда же.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "read"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "чтение"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "write"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "запись"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (direction) (rate(system_disk_io_bytes_total{device=~\"(s|v|xv)d[a-z]+|nvme[0-9]+n[0-9]+\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{direction}}"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 78
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 33,
+      "title": "Занятость диска",
+      "description": "Доля времени, когда у диска были запросы в работе (system.disk.io_time). У 100% — диск узкое место.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (device) (rate(system_disk_io_time_seconds_total{device=~\"(s|v|xv)d[a-z]+|nvme[0-9]+n[0-9]+\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{device}}"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 87
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 34,
+      "title": "Сеть: внешний интерфейс",
+      "description": "Байт в секунду, принятых и отправленных через eth0 — внешний интерфейс сервера (все сайты).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "receive"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "приём"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "transmit"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "передача"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (direction) (rate(system_network_io_bytes_total{device=\"eth0\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{direction}}"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 87
+      }
+    },
+    {
+      "type": "gauge",
+      "id": 35,
+      "title": "Место на диске /",
+      "description": "Сколько занято на корневой файловой системе сервера, как в df: занято / (занято + доступно). Зарезервированное для root не считается доступным.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.8
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=\"used\"}) / sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=~\"used|free\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "занято"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 87
+      }
+    },
+    {
+      "type": "row",
+      "id": 36,
+      "title": "Телеметрия: коллектор OpenTelemetry",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 96
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 37,
+      "title": "Давность метрик хаба",
+      "description": "Сколько секунд назад пришла последняя выгрузка метрик хаба. В норме — до минуты: хаб выгружает метрики раз в минуту. Под нагрузкой выгрузка встаёт, и линия растёт пилой — всё это время графики хаба (запросы, база) пустые, хотя хаб может и отвечать; nginx и сервер при этом видны. Пунктир — 3 минуты.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 180
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "давность"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "time() - max(max_over_time(timestamp(oshub_pools{service_name=\"openhub\"})[3h:1m]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "давность"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 0,
+        "y": 97
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 38,
+      "title": "Принято коллектором в секунду",
+      "description": "Сколько телеметрии встроенный коллектор lgtm принимает в секунду от хаба, nginx и сборщика метрик сервера: спаны трасс, записи журнала, точки метрик.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: /с",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(otelcol_receiver_accepted_spans_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "спаны"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(otelcol_receiver_accepted_log_records_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "записи журнала"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(otelcol_receiver_accepted_metric_points_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "точки метрик"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 6,
+        "y": 97
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 39,
+      "title": "Потери телеметрии в секунду",
+      "description": "Что коллектор не принял (refused, failed) или не смог отправить в хранилища (send_failed), по видам сигнала. Норма — ноль; всё, что выше, в Prometheus, Loki и Tempo не доехало.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: /с",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum(rate(otelcol_receiver_refused_spans_total[$__rate_interval])) or vector(0)) + (sum(rate(otelcol_receiver_failed_spans_total[$__rate_interval])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_spans_total[$__rate_interval])) or vector(0))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "спаны"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum(rate(otelcol_receiver_refused_log_records_total[$__rate_interval])) or vector(0)) + (sum(rate(otelcol_receiver_failed_log_records_total[$__rate_interval])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_log_records_total[$__rate_interval])) or vector(0))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "записи журнала"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum(rate(otelcol_receiver_refused_metric_points_total[$__rate_interval])) or vector(0)) + (sum(rate(otelcol_receiver_failed_metric_points_total[$__rate_interval])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_metric_points_total[$__rate_interval])) or vector(0))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "точки метрик"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 12,
+        "y": 97
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 40,
+      "title": "Заполнение очереди отправки",
+      "description": "Насколько заполнена очередь отправки коллектора в хранилища, по видам сигнала (queue_size / queue_capacity). Очередь копится, когда хранилище не успевает принимать; на 100% новое отбрасывается.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "max": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traces"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "трассы"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "logs"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "журнал"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "metrics"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "метрики"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "profiles"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "профили"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (data_type) (otelcol_exporter_queue_size / otelcol_exporter_queue_capacity)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{data_type}}"
+        }
+      ],
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 97
+      }
+    },
+    {
+      "type": "row",
+      "id": 41,
       "title": "Журнал хаба",
-      "description": "Строки, приехавшие мостом logos → OTel. У строки с trace_id есть переход в трассу — поле trace_id живёт в structured metadata.",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 106
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 42,
+      "title": "Строк журнала в минуту по уровням",
+      "description": "Сколько строк в минуту хаб пишет в журнал с уровнями ОШИБКА, ПРЕДУПРЕЖДЕНИЕ и ИНФОРМАЦИЯ (уровень — поле detected_level в Loki). Отладочные строки не показаны: их на порядки больше, и они прячут остальное.",
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: /мин",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "error"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "ошибки"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "warn"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "предупреждения"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "info"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сведения"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum by (detected_level) (rate({service_name=\"openhub\"} | detected_level=~\"error|warn|info\" [$__auto])) * 60",
+          "queryType": "range",
+          "legendFormat": "{{detected_level}}"
+        }
+      ],
+      "interval": "1m",
       "gridPos": {
-        "h": 10,
-        "w": 16,
+        "h": 12,
+        "w": 8,
         "x": 0,
-        "y": 39
+        "y": 107
+      }
+    },
+    {
+      "type": "logs",
+      "id": 43,
+      "title": "Ошибки и предупреждения хаба",
+      "description": "Строки журнала хаба уровня ОШИБКА и ПРЕДУПРЕЖДЕНИЕ, свежие сверху. У строки с trace_id в подробностях есть переход в трассу Tempo.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
       },
       "options": {
         "showTime": true,
@@ -799,6 +3556,7 @@
         "wrapLogMessage": true,
         "prettifyLogMessage": false,
         "enableLogDetails": true,
+        "enableInfiniteScrolling": true,
         "dedupStrategy": "none",
         "sortOrder": "Descending"
       },
@@ -810,35 +3568,61 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{service_name=~\"$service\"}",
+          "expr": "{service_name=\"openhub\"} | detected_level=~\"error|warn\"",
           "queryType": "range"
         }
-      ]
+      ],
+      "gridPos": {
+        "h": 12,
+        "w": 16,
+        "x": 8,
+        "y": 107
+      }
     },
     {
-      "type": "nodeGraph",
-      "id": 10,
-      "title": "Карта сервисов",
-      "description": "Строится из метрик service-graph, которые генератор Tempo считает по трассам.",
-      "datasource": {
-        "type": "tempo",
-        "uid": "tempo"
-      },
+      "type": "row",
+      "id": 45,
+      "title": "Трассы",
+      "collapsed": true,
       "gridPos": {
-        "h": 10,
-        "w": 8,
-        "x": 16,
-        "y": 39
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 119
       },
-      "options": {},
-      "targets": [
+      "panels": [
         {
-          "refId": "A",
+          "type": "table",
+          "id": 44,
+          "title": "Свежие запросы хаба",
+          "description": "Серверные спаны хаба из Tempo: маршрут, адрес и код ответа. Клик по строке открывает трассу целиком. Под нагрузкой хаб выгружает не все спаны, поэтому считать по ним запросы нельзя — только разбирать отдельные.",
           "datasource": {
             "type": "tempo",
             "uid": "tempo"
           },
-          "queryType": "serviceMap"
+          "options": {
+            "showHeader": true
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "tempo",
+                "uid": "tempo"
+              },
+              "queryType": "traceql",
+              "query": "{ resource.service.name = \"openhub\" && kind = server } | select(span.http.route, span.url.path, span.http.response.status_code)",
+              "limit": 20,
+              "spss": 1,
+              "tableType": "spans"
+            }
+          ],
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 120
+          }
         }
       ]
     }
