@@ -10,7 +10,8 @@
 #   4. trace id пишется в access log;
 #   5. то же для пуша opm по http://hub.oscript.io/push;
 #   6. метрики stub_status доходят до коллектора через оверлей monitoring/otelcol-nginx.yaml,
-#      опрос не попадает в трассы, а снаружи (через сайты) stub_status не отдаётся.
+#      опрос не попадает в трассы, а снаружи (через сайты) stub_status не отдаётся;
+#   7. имя спана — "{метод} {шаблон маршрута}", а не сырой путь.
 set -eu
 cd "$(dirname "$0")"
 
@@ -89,6 +90,25 @@ check_request() {
   echo "OK: $tp"
 }
 
+# check_span_name <метод> <порт> <url> <ожидаемое имя спана> <trace id, 32 hex>
+# Свой trace id на запрос: при propagate он достаётся спану nginx — по нему и ищем спан.
+check_span_name() {
+  method="$1"; port="$2"; url="$3"; expected="$4"; tid="$5"
+  echo "### span name: $method $url"
+  $DC run --rm --no-deps curl -sk -o /dev/null -X "$method" \
+    --connect-to "hub.oscript.io:$port:nginx:$port" \
+    -H "traceparent: 00-${tid}-00f067aa0ba902b7-01" "$url" \
+    || fail "$method $url: запрос не прошёл"
+
+  wait_collector "Trace ID +: $tid" \
+    || fail "$method $url: спан с trace id $tid не дошёл до коллектора"
+  name="$($DC logs --no-log-prefix collector | grep -A4 -E "Trace ID +: $tid" \
+          | sed -n 's/^ *Name *: //p' | head -n1)"
+  [ "$name" = "$expected" ] \
+    || fail "$method $url: имя спана '$name', ожидали '$expected'"
+  echo "OK: $name"
+}
+
 echo "### nginx -t"
 # docker compose run собирает образ, только если его нет, — без явной сборки тест гоняет старый конфиг
 $DC build nginx
@@ -119,6 +139,25 @@ check_request "POST http://hub.oscript.io/push без traceparent" "" \
 
 $DC logs --no-log-prefix collector | grep -q 'service.name: Str(nginx)' \
   || fail "service.name у спанов nginx не nginx"
+
+# Имя спана — шаблон маршрута, а не сырой путь: иначе span-metrics в Tempo
+# получают по серии на каждый файл пакета
+check_span_name GET 443 https://hub.oscript.io/ \
+  "GET /" 11111111111111111111111111111111
+check_span_name GET 443 https://hub.oscript.io/download/somepkg/somepkg-1.0.0.ospx \
+  "GET /download/{name}/{file}" 22222222222222222222222222222222
+check_span_name GET 443 https://hub.oscript.io/dev-channel/list.txt \
+  "GET /dev-channel/list.txt" 33333333333333333333333333333333
+check_span_name GET 443 https://hub.oscript.io/api/v1/pools/main/download/somepkg/somepkg-1.0.0.ospx \
+  "GET /api/v1/pools/{pool}/download/{name}/{file}" 44444444444444444444444444444444
+check_span_name GET 443 https://hub.oscript.io/pools/main/packages/somepkg/versions/1.0.0 \
+  "GET /pools/{pool}/packages/*" 55555555555555555555555555555555
+check_span_name POST 80 http://hub.oscript.io/pools/main/push \
+  "POST /pools/{pool}/push" 66666666666666666666666666666666
+check_span_name POST 80 http://hub.oscript.io/push \
+  "POST /push" 77777777777777777777777777777777
+check_span_name GET 443 https://hub.oscript.io/groups/admins/members \
+  "GET /groups/*" 88888888888888888888888888888888
 
 echo "### метрики stub_status"
 wait_collector "Name: nginx.connections_accepted" \
