@@ -1,0 +1,27 @@
+# Тестовый стенд метрик хоста. Запуск: ./monitoring/test/run.sh
+#
+#   hostmetrics — боевой сервис из корневого docker-compose.yml (extends): тот же образ,
+#                 монтирование хоста, network_mode и конфиг; переопределены только адрес
+#                 экспорта и имя хоста
+#   sink        — коллектор вместо lgtm: принимает OTLP на 127.0.0.1:14317 и печатает метрики в лог
+#                 (не 4317 — чтобы не столкнуться с боевым lgtm, если тест гоняют на сервере)
+name: hostmetrics-test
+
+services:
+  hostmetrics:
+    extends:
+      file: ../../docker-compose.yml
+      service: hostmetrics
+    environment:
+      - OTLP_ENDPOINT=127.0.0.1:14317
+      - OTEL_HOST_NAME=test-host
+    depends_on:
+      - sink
+
+  sink:
+    image: otel/opentelemetry-collector:0.104.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    ports:
+      - "127.0.0.1:14317:4317"
+    volumes:
+      - ./sink.yaml:/etc/otelcol/config.yaml:ro
