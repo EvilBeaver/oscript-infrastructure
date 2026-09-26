@@ -11,7 +11,8 @@
 #   5. то же для пуша opm по http://hub.oscript.io/push;
 #   6. метрики stub_status доходят до коллектора через оверлей monitoring/otelcol-nginx.yaml,
 #      опрос не попадает в трассы, а снаружи (через сайты) stub_status не отдаётся;
-#   7. имя спана — "{метод} {шаблон маршрута}", а не сырой путь.
+#   7. спаны по семконвенции OTel HTTP server span: имя "{method} {route}" (или "{method}",
+#      если низкокардинального маршрута нет; HTTP для неизвестного метода) и стабильные атрибуты.
 set -eu
 cd "$(dirname "$0")"
 
@@ -109,6 +110,24 @@ check_span_name() {
   echo "OK: $name"
 }
 
+# check_span_attrs <trace id> <подстрока атрибута>...
+# Ищет только внутри блока спана с этим trace id (до следующего "Span #"),
+# чтобы не зацепить атрибуты соседних спанов.
+check_span_attrs() {
+  tid="$1"; shift
+  echo "### атрибуты спана $tid"
+  block="$($DC logs --no-log-prefix collector | awk -v tid="$tid" '
+    $0 ~ ("Trace ID +: " tid) { f = 1 }
+    f && /^(Span|ScopeSpans|ResourceSpans) #/ { exit }
+    f { print }')"
+  [ -n "$block" ] || fail "спан $tid не найден в коллекторе"
+  for attr in "$@"; do
+    printf '%s\n' "$block" | grep -qF -- "-> $attr" \
+      || fail "у спана $tid нет атрибута '$attr'"
+  done
+  echo "OK: $# атрибутов"
+}
+
 echo "### nginx -t"
 # docker compose run собирает образ, только если его нет, — без явной сборки тест гоняет старый конфиг
 $DC build nginx
@@ -151,13 +170,41 @@ check_span_name GET 443 https://hub.oscript.io/dev-channel/list.txt \
 check_span_name GET 443 https://hub.oscript.io/api/v1/pools/main/download/somepkg/somepkg-1.0.0.ospx \
   "GET /api/v1/pools/{pool}/download/{name}/{file}" 44444444444444444444444444444444
 check_span_name GET 443 https://hub.oscript.io/pools/main/packages/somepkg/versions/1.0.0 \
-  "GET /pools/{pool}/packages/*" 55555555555555555555555555555555
+  "GET" 55555555555555555555555555555555
 check_span_name POST 80 http://hub.oscript.io/pools/main/push \
   "POST /pools/{pool}/push" 66666666666666666666666666666666
 check_span_name POST 80 http://hub.oscript.io/push \
   "POST /push" 77777777777777777777777777777777
 check_span_name GET 443 https://hub.oscript.io/groups/admins/members \
-  "GET /groups/*" 88888888888888888888888888888888
+  "GET" 88888888888888888888888888888888
+check_span_name POST 80 http://hub.oscript.io/api/v1/pools/main/push \
+  "POST /api/v1/pools/{pool}/push" 99999999999999999999999999999999
+# неизвестный метод: {method} = HTTP, http.request.method = _OTHER
+check_span_name FOO 443 https://hub.oscript.io/download/list.txt \
+  "HTTP /download/list.txt" aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+# Атрибуты стабильной семконвенции HTTP server span (строками: otel_span_attr не умеет int)
+check_span_attrs 22222222222222222222222222222222 \
+  'http.request.method: Str(GET)' \
+  'http.request.method_original: Str(GET)' \
+  'url.path: Str(/download/somepkg/somepkg-1.0.0.ospx)' \
+  'url.scheme: Str(https)' \
+  'server.address: Str(hub.oscript.io)' \
+  'server.port: Str(443)' \
+  'network.protocol.version: Str(2)' \
+  'http.response.status_code: Str(200)' \
+  'user_agent.original: Str(curl/' \
+  'client.address: Str(' \
+  'network.peer.address: Str(' \
+  'network.peer.port: Str('
+check_span_attrs 77777777777777777777777777777777 \
+  'http.request.method: Str(POST)' \
+  'url.scheme: Str(http)' \
+  'server.port: Str(80)' \
+  'network.protocol.version: Str(1.1)'
+check_span_attrs aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  'http.request.method: Str(_OTHER)' \
+  'http.request.method_original: Str(FOO)'
 
 echo "### метрики stub_status"
 wait_collector "Name: nginx.connections_accepted" \
