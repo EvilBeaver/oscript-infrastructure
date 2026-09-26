@@ -72,8 +72,10 @@ nginx собран из официального образа с модулем 
 Входящий W3C `traceparent` клиента nginx продолжает (trace id сохраняется), без него начинает
 новую трассу; в бэкенд уходит тот же trace id с parent-id спана nginx, так что спаны OpenHub
 встают дочерними к спану nginx; `trace_id` пишется и в access log. Настройки — `web/nginx/conf.d/otel.conf`.
-Спаны называются `{метод} {шаблон маршрута}` (`GET /download/{name}/{file}`, `POST /pools/{pool}/push`,
-для прочих путей — первый сегмент: `GET /groups/*`), точный путь — в атрибуте `http.target`.
+Спаны — по [семконвенции OTel для HTTP server span](https://opentelemetry.io/docs/specs/semconv/http/http-spans/):
+имя `{method} {route}` для известных маршрутов хаба (`GET /download/{name}/{file}`, `POST /pools/{pool}/push`),
+иначе просто `{method}`; стабильные атрибуты (`http.request.method`, `url.path`, `server.address`, …)
+пишутся вместе со старыми, которые модуль ставит сам. Чего модуль сделать не даёт — в комментариях `otel.conf`.
 
 Метрики соединений и запросов (`nginx.connections_*`, `nginx.requests`; в Prometheus — с префиксом `nginx_`) коллектор `lgtm` снимает
 со `stub_status` на внутреннем порту 8080 (`web/nginx/sites-enabled/status`, наружу не публикуется);
