@@ -1,0 +1,75 @@
+# Метрики хоста → lgtm по OTLP/gRPC. Сервис hostmetrics в docker-compose.yml.
+# Корень хоста смонтирован в /hostfs; root_path направляет туда чтение /proc и /sys,
+# иначе receiver видел бы контейнер, а не хост.
+receivers:
+  hostmetrics:
+    root_path: /hostfs
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      load:
+      memory:
+      paging:
+      disk:
+      network:
+      filesystem:
+        # только настоящие ФС: без слоёв Docker, procfs/sysfs/cgroup и прочих виртуальных
+        exclude_fs_types:
+          match_type: strict
+          fs_types:
+            - autofs
+            - binfmt_misc
+            - bpf
+            - cgroup
+            - cgroup2
+            - configfs
+            - debugfs
+            - devpts
+            - devtmpfs
+            - fusectl
+            - hugetlbfs
+            - mqueue
+            - nsfs
+            - overlay
+            - proc
+            - procfs
+            - pstore
+            - rpc_pipefs
+            - securityfs
+            - selinuxfs
+            - squashfs
+            - sysfs
+            - tmpfs
+            - tracefs
+        exclude_mount_points:
+          match_type: regexp
+          mount_points:
+            - ^/var/lib/docker/.*
+            - ^/hostfs/var/lib/docker/.*
+            - ^/snap/.*
+
+processors:
+  # receiver не ставит ресурсных атрибутов, а имя хоста в контейнере — не имя сервера
+  resource:
+    attributes:
+      - key: host.name
+        value: ${env:OTEL_HOST_NAME}
+        action: upsert
+  batch:
+
+exporters:
+  otlp:
+    endpoint: ${env:OTLP_ENDPOINT}
+    tls:
+      insecure: true
+
+service:
+  # сервис живёт в сети хоста: собственные метрики коллектора на :8888 торчали бы наружу
+  telemetry:
+    metrics:
+      level: none
+  pipelines:
+    metrics:
+      receivers: [hostmetrics]
+      processors: [resource, batch]
+      exporters: [otlp]

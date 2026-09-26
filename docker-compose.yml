@@ -184,6 +184,23 @@ services:
       - ./monitoring/grafana-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/openhub.yaml:ro
       - ./monitoring/openhub-dashboard.json:/otel-lgtm/openhub/openhub-dashboard.json:ro
       - ./monitoring/otelcol-nginx.yaml:/otel-lgtm/otelcol-nginx.yaml:ro
+    ports:
+      # OTLP/gRPC для hostmetrics: он в сети хоста и lgtm по имени не видит. Только localhost.
+      - "127.0.0.1:4317:4317"
+
+  # Метрики хоста (CPU, загрузка, память, диски, ФС, сеть) → lgtm. Конфиг — monitoring/otelcol-host.yaml
+  hostmetrics:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # сеть хоста: иначе скрейпер network видит интерфейсы контейнера, а не сервера
+    network_mode: host
+    environment:
+      - OTLP_ENDPOINT=127.0.0.1:4317
+      - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript.io}
+    volumes:
+      - /:/hostfs:ro
+      - ./monitoring/otelcol-host.yaml:/etc/otelcol/config.yaml:ro
 
 networks:
   openhub:

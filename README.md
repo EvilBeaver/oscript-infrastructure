@@ -90,3 +90,17 @@ receiver подключён оверлеем `monitoring/otelcol-nginx.yaml`. RP
 ```bash
 ./web/nginx/test/run.sh
 ```
+
+## Метрики хоста
+
+Сервис `hostmetrics` (OTel Collector, receiver `hostmetrics`) снимает CPU, загрузку, память, swap,
+диски, файловые системы и сеть сервера и шлёт их в `lgtm`; в Prometheus это метрики `system_*`
+с `host_name`. Корень хоста смонтирован в контейнер только на чтение (`/:/hostfs:ro`), сервис живёт
+в сети хоста (иначе видна сеть контейнера), поэтому OTLP-порт `lgtm` опубликован на `127.0.0.1:4317`.
+Имя хоста в метриках — `OTEL_HOST_NAME` из `.env` (по умолчанию `oscript.io`). Конфиг — `monitoring/otelcol-host.yaml`.
+
+Проверка (Linux-хост с Docker):
+
+```bash
+./monitoring/test/run.sh
+```
