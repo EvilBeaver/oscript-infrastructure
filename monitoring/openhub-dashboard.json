@@ -391,8 +391,8 @@
     {
       "type": "table",
       "id": 6,
-      "title": "Свежие трассы",
-      "description": "Поиск по Tempo. Клик по строке открывает трассу целиком; из спана внутри доступны переходы в логи и в метрики.",
+      "title": "Свежие запросы",
+      "description": "Серверные спаны выбранной службы из Tempo: имя спана у хаба — «метод маршрут», колонки — http.route, url.path и код ответа. Список трасс тут не годится: он показывает имя корня, а корень — nginx, который маршрутов не знает. Клик по строке открывает трассу целиком.",
       "datasource": {
         "type": "tempo",
         "uid": "tempo"
@@ -414,9 +414,10 @@
             "uid": "tempo"
           },
           "queryType": "traceql",
-          "query": "{ resource.service.name = \"$service\" }",
+          "query": "{ resource.service.name = \"$service\" && kind = server } | select(span.http.route, span.url.path, span.http.response.status_code)",
           "limit": 20,
-          "tableType": "traces"
+          "spss": 1,
+          "tableType": "spans"
         }
       ]
     },
