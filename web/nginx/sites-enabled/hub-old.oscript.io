@@ -7,6 +7,9 @@ server {
 
     client_max_body_size 100M;
 
+    # opm_hub резолвится при запросе, а не при старте: иначе без контейнера opm_hub nginx не запустится
+    resolver 127.0.0.11 valid=30s;
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
@@ -25,7 +28,8 @@ server {
         proxy_set_header X-Real-IP  $remote_addr;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header Host $host;
-        proxy_pass http://opm_hub:5000;
+        set $target_url http://opm_hub:5000;
+        proxy_pass $target_url;
 
     }
 
