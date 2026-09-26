@@ -18,6 +18,7 @@ services:
       - certbot
       - minio
       - jenkins
+      - lgtm
   
   site:
     image: oscript/backend
