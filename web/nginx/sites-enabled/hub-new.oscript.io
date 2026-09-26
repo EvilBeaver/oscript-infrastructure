@@ -15,8 +15,9 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
     server_name hub-new.oscript.io;
 
     access_log /var/log/nginx/access.log with_host;

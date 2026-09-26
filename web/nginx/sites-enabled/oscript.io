@@ -15,8 +15,9 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
     server_name oscript.io www.oscript.io;
     root /var/www/oscript.io;
 
