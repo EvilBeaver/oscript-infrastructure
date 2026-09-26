@@ -73,7 +73,12 @@ nginx собран из официального образа с модулем 
 новую трассу; в бэкенд уходит тот же trace id с parent-id спана nginx, так что спаны OpenHub
 встают дочерними к спану nginx; `trace_id` пишется и в access log. Настройки — `web/nginx/conf.d/otel.conf`.
 
-Проверка конфига и трассировки (нужен docker compose v2):
+Метрики соединений и запросов (`nginx.connections_*`, `nginx.requests`; в Prometheus — с префиксом `nginx_`) коллектор `lgtm` снимает
+со `stub_status` на внутреннем порту 8080 (`web/nginx/sites-enabled/status`, наружу не публикуется);
+receiver подключён оверлеем `monitoring/otelcol-nginx.yaml`. RPS, ошибки и латентность по трассам
+строит Tempo в `lgtm`: `traces_spanmetrics_*{service="nginx"}`.
+
+Проверка конфига, трассировки и метрик (нужен docker compose v2):
 
 ```bash
 ./web/nginx/test/run.sh

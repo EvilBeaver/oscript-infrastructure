@@ -177,10 +177,13 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?задайте GRAFANA_ADMIN_PASSWORD в .env}
       # В образе анонимный вход по умолчанию открыт с ролью Admin
       - GF_AUTH_ANONYMOUS_ENABLED=false
+      # Метрики nginx (stub_status): оверлей к конфигу встроенного коллектора
+      - OTELCOL_EXTRA_ARGS=--config=file:/otel-lgtm/otelcol-nginx.yaml
     volumes:
       - lgtm_data:/data
       - ./monitoring/grafana-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/openhub.yaml:ro
       - ./monitoring/openhub-dashboard.json:/otel-lgtm/openhub/openhub-dashboard.json:ro
+      - ./monitoring/otelcol-nginx.yaml:/otel-lgtm/otelcol-nginx.yaml:ro
 
 networks:
   openhub:
