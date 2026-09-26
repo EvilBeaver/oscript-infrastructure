@@ -3,7 +3,7 @@
 # Вместо боевых сервисов:
 #   certs     — самоподписанные сертификаты на все домены из sites-enabled
 #   backend   — эхо заголовков под именем openhub (сюда ведёт hub.oscript.io)
-#   collector — OTLP-коллектор под именем lgtm, печатает принятые спаны в лог
+#   collector — OTLP-коллектор под именем lgtm, печатает принятые спаны и метрики в лог
 name: nginx-otel-test
 
 services:
@@ -44,10 +44,14 @@ services:
           - openhub
 
   collector:
-    image: otel/opentelemetry-collector:0.104.0
-    command: ["--config=/etc/otelcol/config.yaml"]
+    # contrib — ради receiver nginx; поверх тестового конфига тот же оверлей, что монтируется в lgtm
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    command:
+      - --config=/etc/otelcol/config.yaml
+      - --config=/etc/otelcol/otelcol-nginx.yaml
     volumes:
       - ./otelcol.yaml:/etc/otelcol/config.yaml:ro
+      - ../../../monitoring/otelcol-nginx.yaml:/etc/otelcol/otelcol-nginx.yaml:ro
     networks:
       default:
         aliases:

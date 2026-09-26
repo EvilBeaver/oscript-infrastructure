@@ -8,7 +8,9 @@
 #   3. спан nginx с этим trace id и service.name=nginx доходит до коллектора,
 #      а parent-id в заголовке для бэкенда — это id спана nginx (бэкенд встанет к нему дочерним);
 #   4. trace id пишется в access log;
-#   5. то же для пуша opm по http://hub.oscript.io/push.
+#   5. то же для пуша opm по http://hub.oscript.io/push;
+#   6. метрики stub_status доходят до коллектора через оверлей monitoring/otelcol-nginx.yaml,
+#      опрос не попадает в трассы, а снаружи (через сайты) stub_status не отдаётся.
 set -eu
 cd "$(dirname "$0")"
 
@@ -117,5 +119,24 @@ check_request "POST http://hub.oscript.io/push без traceparent" "" \
 
 $DC logs --no-log-prefix collector | grep -q 'service.name: Str(nginx)' \
   || fail "service.name у спанов nginx не nginx"
+
+echo "### метрики stub_status"
+wait_collector "Name: nginx.connections_accepted" \
+  || fail "метрики nginx (stub_status) не дошли до коллектора"
+if $DC logs --no-log-prefix collector | grep -q 'http.target: Str(/nginx_status)'; then
+  fail "опрос stub_status попал в трассы"
+fi
+
+# снаружи, через сайты на 80/443, stub_status не отдаётся
+for proto_port in http:80 https:443; do
+  proto="${proto_port%:*}"; port="${proto_port#*:}"
+  body="$($DC run --rm --no-deps curl -sk \
+          --connect-to "hub.oscript.io:$port:nginx:$port" \
+          "$proto://hub.oscript.io/nginx_status" 2>/dev/null || true)"
+  if echo "$body" | grep -q 'Active connections'; then
+    fail "stub_status доступен снаружи: $proto://hub.oscript.io/nginx_status"
+  fi
+done
+echo "OK: stub_status"
 
 echo "nginx otel test OK."
