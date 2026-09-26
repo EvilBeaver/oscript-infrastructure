@@ -2,7 +2,7 @@
 #
 # Вместо боевых сервисов:
 #   certs     — самоподписанные сертификаты на все домены из sites-enabled
-#   backend   — эхо заголовков под именем openhub (сюда ведут hub и hub-new)
+#   backend   — эхо заголовков под именем openhub (сюда ведёт hub.oscript.io)
 #   collector — OTLP-коллектор под именем lgtm, печатает принятые спаны в лог
 name: nginx-otel-test
 

@@ -102,13 +102,13 @@ $DC up -d nginx backend collector
 # nginx поднимается не мгновенно — ждём ответа от сайта (default_server рвёт соединение, его не спрашиваем)
 i=0
 until [ "$($DC run --rm --no-deps curl -sk -o /dev/null -w '%{http_code}' \
-          --connect-to hub-new.oscript.io:443:nginx:443 https://hub-new.oscript.io/ 2>/dev/null)" = "200" ]; do
+          --connect-to hub.oscript.io:443:nginx:443 https://hub.oscript.io/ 2>/dev/null)" = "200" ]; do
   i=$((i + 1)); [ $i -lt 30 ] || fail "nginx не поднялся"; sleep 1
 done
 
-check_request "https://hub-new.oscript.io/ с traceparent клиента" "$CLIENT_TRACEPARENT" \
-  -k --connect-to hub-new.oscript.io:443:nginx:443 \
-  https://hub-new.oscript.io/
+check_request "https://hub.oscript.io/ с traceparent клиента" "$CLIENT_TRACEPARENT" \
+  -k --connect-to hub.oscript.io:443:nginx:443 \
+  https://hub.oscript.io/
 
 check_request "POST http://hub.oscript.io/push без traceparent" "" \
   --connect-to hub.oscript.io:80:nginx:80 \
