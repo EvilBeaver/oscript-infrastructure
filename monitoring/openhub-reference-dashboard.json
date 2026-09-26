@@ -1,0 +1,1468 @@
+{
+  "uid": "openhub-reference",
+  "title": "OpenHub — справочник",
+  "description": "Сколько в хабе накоплено: пулы, пакеты, версии, учётки, место в хранилище, скачивания за всё время, и что копилось за выбранный период — публикации, зеркала, уведомления. Что хаб делает сейчас — на дашборде «OpenHub — наблюдаемость».",
+  "tags": [
+    "openhub"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "version": 6,
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 1,
+      "title": "Каталог",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Пулов",
+      "description": "Сколько пулов в хабе (датчик oshub_pools, читается из базы).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_pools{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_pools{service_name=\"openhub\"})))) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 2,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Пакетов",
+      "description": "Сколько пакетов во всех пулах (oshub_packages).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_packages{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_packages{service_name=\"openhub\"})))) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 3,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Версий",
+      "description": "Сколько опубликованных версий пакетов во всех пулах (oshub_versions).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_versions{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_versions{service_name=\"openhub\"})))) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 4,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Учётных записей",
+      "description": "Сколько учётных записей пользователей (oshub_users).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_users{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_users{service_name=\"openhub\"})))) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 5,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Занято в хранилище",
+      "description": "Сколько места занимают артефакты пакетов в хранилище (S3), сумма по всем пулам (oshub_storage_used_bytes).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"})))) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 6,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Скачиваний всего",
+      "description": "Сколько раз пакеты скачивали за всю жизнь хаба — по базе (oshub_downloads_all_time_total).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_downloads_all_time_total{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_downloads_all_time_total{service_name=\"openhub\"})))) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 7,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      }
+    },
+    {
+      "type": "row",
+      "id": 8,
+      "title": "Пулы",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Что где лежит",
+      "description": "Пулы хаба: сколько места занимают их артефакты сейчас и что с ними происходило за выбранный период — скачивания, публикации, версии, пришедшие через зеркало. Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Занято в хранилище"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Скачиваний за период"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Публикаций за период"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Версий через зеркало"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Занято в хранилище",
+            "desc": true
+          }
+        ],
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"}))))",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (oshub_pool) (increase(oshub_downloads_total{service_name=\"openhub\"}[$__range])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"})))) * 0",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (oshub_pool) (sum_over_time((clamp_min(last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"})))) * 0",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (oshub_pool) (sum_over_time((clamp_min(last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"})))) * 0",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "oshub_pool": 0,
+              "Value #A": 1,
+              "Value #B": 2,
+              "Value #C": 3,
+              "Value #D": 4
+            },
+            "renameByName": {
+              "oshub_pool": "Пул",
+              "Value #A": "Занято в хранилище",
+              "Value #B": "Скачиваний за период",
+              "Value #C": "Публикаций за период",
+              "Value #D": "Версий через зеркало"
+            }
+          }
+        }
+      ],
+      "id": 9,
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      }
+    },
+    {
+      "type": "row",
+      "id": 10,
+      "title": "Рост за период",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Пакеты и версии",
+      "description": "Сколько пакетов и версий было в хабе в каждый момент периода.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_packages{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_packages{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "пакетов"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_versions{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_versions{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "версий"
+        }
+      ],
+      "id": 11,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Пулы и учётные записи",
+      "description": "Сколько пулов и учётных записей было в хабе в каждый момент периода.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_pools{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_pools{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "пулов"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_users{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_users{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "учётных записей"
+        }
+      ],
+      "id": 12,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 16
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Занято в хранилище",
+      "description": "Сколько места занимали артефакты пакетов в хранилище, сумма по всем пулам.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "занято"
+        }
+      ],
+      "id": 13,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 16
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Скачиваний всего",
+      "description": "Счётчик скачиваний за всю жизнь хаба, по базе (oshub_downloads_all_time_total).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_downloads_all_time_total{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_downloads_all_time_total{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "скачиваний"
+        }
+      ],
+      "id": 14,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 16
+      }
+    },
+    {
+      "type": "row",
+      "id": 15,
+      "title": "События за период",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Публикаций",
+      "description": "Сколько версий опубликовали в хаб за выбранный период — opm push, веб-форма, доверенная публикация (oshub_publications_total). Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum (sum_over_time((clamp_min(last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 16,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 25
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Версий через зеркало",
+      "description": "Сколько версий пришло в хаб из зеркалируемых хабов за выбранный период (oshub_mirror_versions_total). Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum (sum_over_time((clamp_min(last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 17,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 25
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Прогонов зеркал",
+      "description": "Сколько циклов синхронизации зеркал прошло за выбранный период (oshub_mirror_sync_cycles_total). Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum (sum_over_time((clamp_min(last_over_time(oshub_mirror_sync_cycles_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_mirror_sync_cycles_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_mirror_sync_cycles_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 18,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 25
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Доставок в Telegram",
+      "description": "Сколько раз хаб пытался доставить уведомление в Telegram за выбранный период, успешно и нет (oshub_telegram_attempts_total). Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum (sum_over_time((clamp_min(last_over_time(oshub_telegram_attempts_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_telegram_attempts_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_telegram_attempts_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 19,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 25
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Отказов по стране",
+      "description": "Сколько входов через провайдера отсекло правило «закрыт в странах» за выбранный период (oshub_login_geo_denied_total). Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum (sum_over_time((clamp_min(last_over_time(oshub_login_geo_denied_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_login_geo_denied_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_login_geo_denied_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or vector(0)",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "id": 20,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 25
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Запусков хаба",
+      "description": "Сколько раз хаб запускался за выбранный период: строки журнала «Стартовые задачи завершены» в Loki.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({service_name=\"openhub\"} |= \"Стартовые задачи завершены\" [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ],
+      "id": 21,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 25
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "События по дням",
+      "description": "Сколько за каждые сутки было публикаций, версий через зеркало, доставок в Telegram и отказов входа по стране; столбик — стопка из всех четырёх. Сутки — по UTC. Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(sum_over_time((clamp_min(last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__interval:1m])) or vector(0)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "публикации"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(sum_over_time((clamp_min(last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__interval:1m])) or vector(0)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "версии через зеркало"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(sum_over_time((clamp_min(last_over_time(oshub_telegram_attempts_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_telegram_attempts_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_telegram_attempts_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__interval:1m])) or vector(0)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "доставки в Telegram"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(sum_over_time((clamp_min(last_over_time(oshub_login_geo_denied_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_login_geo_denied_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_login_geo_denied_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__interval:1m])) or vector(0)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "отказы входа по стране"
+        }
+      ],
+      "interval": "1d",
+      "id": 22,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      }
+    }
+  ]
+}
