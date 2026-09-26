@@ -116,7 +116,7 @@ services:
   
   # OpenHub — hub-new.oscript.io. Секреты — в .env, см. openhub.env.example
   openhub:
-    image: segateekb/openhub:0.7.36
+    image: segateekb/openhub:0.7.37-cache-98a5c830
     restart: unless-stopped
     environment:
       - TZ=UTC
@@ -124,6 +124,7 @@ services:
       - OSHUB_INSTANCE_TRUSTED_PROXIES=10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
       - data_ИсточникиДанных_ТипКоннектора=КоннекторPostgreSQL
       - data_ИсточникиДанных_СтрокаСоединения=Host=openhub_db;Username=openhub;Password=${OPENHUB_DB_PASSWORD};Database=openhub;KeepAlive=10
+      - data_ИсточникиДанных_РазмерПула=50
       - logos_logger_rootLogger_level=DEBUG
       - OSHUB_LOG_LEVEL=DEBUG
       - OSHUB_STORAGE_BACKEND=s3
