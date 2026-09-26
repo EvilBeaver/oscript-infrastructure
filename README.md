@@ -69,7 +69,8 @@
 
 nginx собран из официального образа с модулем [ngx_otel_module](https://nginx.org/ru/docs/ngx_otel_module.html)
 и шлёт спаны в `lgtm` (OTLP/gRPC, порт 4317) — трассы видны в Grafana рядом с трассами хаба.
-В каждый проксируемый запрос nginx подставляет свой W3C `traceparent`, так что спаны OpenHub
+Входящий W3C `traceparent` клиента nginx продолжает (trace id сохраняется), без него начинает
+новую трассу; в бэкенд уходит тот же trace id с parent-id спана nginx, так что спаны OpenHub
 встают дочерними к спану nginx; `trace_id` пишется и в access log. Настройки — `web/nginx/conf.d/otel.conf`.
 
 Проверка конфига и трассировки (нужен docker compose v2):
