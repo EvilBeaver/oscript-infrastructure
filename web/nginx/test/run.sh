@@ -11,8 +11,8 @@
 #   5. то же для пуша opm по http://hub.oscript.io/push;
 #   6. метрики stub_status доходят до коллектора через оверлей monitoring/otelcol-nginx.yaml,
 #      опрос не попадает в трассы, а снаружи (через сайты) stub_status не отдаётся;
-#   7. спаны по семконвенции OTel HTTP server span: имя "{method} {route}" (или "{method}",
-#      если низкокардинального маршрута нет; HTTP для неизвестного метода) и стабильные атрибуты.
+#   7. спаны по семконвенции OTel HTTP server span: имя — ровно {method} (HTTP для неизвестного
+#      метода; маршрут знает только хаб), стабильные атрибуты, путь — в url.path.
 set -eu
 cd "$(dirname "$0")"
 
@@ -159,29 +159,23 @@ check_request "POST http://hub.oscript.io/push без traceparent" "" \
 $DC logs --no-log-prefix collector | grep -q 'service.name: Str(nginx)' \
   || fail "service.name у спанов nginx не nginx"
 
-# Имя спана — шаблон маршрута, а не сырой путь: иначе span-metrics в Tempo
-# получают по серии на каждый файл пакета
+# Имя спана nginx — ровно {method}: маршрут знает только хаб (он есть в спане openhub),
+# а путь в имени раздул бы span-metrics в Tempo. Путь — в атрибуте url.path.
 check_span_name GET 443 https://hub.oscript.io/ \
-  "GET /" 11111111111111111111111111111111
+  "GET" 11111111111111111111111111111111
 check_span_name GET 443 https://hub.oscript.io/download/somepkg/somepkg-1.0.0.ospx \
-  "GET /download/{name}/{file}" 22222222222222222222222222222222
+  "GET" 22222222222222222222222222222222
 check_span_name GET 443 https://hub.oscript.io/dev-channel/list.txt \
-  "GET /dev-channel/list.txt" 33333333333333333333333333333333
-check_span_name GET 443 https://hub.oscript.io/api/v1/pools/main/download/somepkg/somepkg-1.0.0.ospx \
-  "GET /api/v1/pools/{pool}/download/{name}/{file}" 44444444444444444444444444444444
+  "GET" 33333333333333333333333333333333
 check_span_name GET 443 https://hub.oscript.io/pools/main/packages/somepkg/versions/1.0.0 \
   "GET" 55555555555555555555555555555555
 check_span_name POST 80 http://hub.oscript.io/pools/main/push \
-  "POST /pools/{pool}/push" 66666666666666666666666666666666
+  "POST" 66666666666666666666666666666666
 check_span_name POST 80 http://hub.oscript.io/push \
-  "POST /push" 77777777777777777777777777777777
-check_span_name GET 443 https://hub.oscript.io/groups/admins/members \
-  "GET" 88888888888888888888888888888888
-check_span_name POST 80 http://hub.oscript.io/api/v1/pools/main/push \
-  "POST /api/v1/pools/{pool}/push" 99999999999999999999999999999999
+  "POST" 77777777777777777777777777777777
 # неизвестный метод: {method} = HTTP, http.request.method = _OTHER
 check_span_name FOO 443 https://hub.oscript.io/download/list.txt \
-  "HTTP /download/list.txt" aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  "HTTP" aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 # Атрибуты стабильной семконвенции HTTP server span (строками: otel_span_attr не умеет int)
 check_span_attrs 22222222222222222222222222222222 \
