@@ -73,9 +73,12 @@ nginx собран из официального образа с модулем 
 новую трассу; в бэкенд уходит тот же trace id с parent-id спана nginx, так что спаны OpenHub
 встают дочерними к спану nginx; `trace_id` пишется и в access log. Настройки — `web/nginx/conf.d/otel.conf`.
 Спаны — по [семконвенции OTel для HTTP server span](https://opentelemetry.io/docs/specs/semconv/http/http-spans/):
-имя `{method} {route}` для известных маршрутов хаба (`GET /download/{name}/{file}`, `POST /pools/{pool}/push`),
-иначе просто `{method}`; стабильные атрибуты (`http.request.method`, `url.path`, `server.address`, …)
-пишутся вместе со старыми, которые модуль ставит сам. Чего модуль сделать не даёт — в комментариях `otel.conf`.
+имя — `{method}`, конкретный путь — в атрибуте `url.path`; стабильные атрибуты (`http.request.method`,
+`url.path`, `server.address`, …) пишутся вместе со старыми, которые модуль ставит сам. Маршрут nginx
+не знает: его знает хаб, спан OpenHub называется `{метод} {шаблон маршрута}` и несёт `http.route`.
+Маршруты — на дашборде хаба (панели «Трассы хаба» и «Запросы по маршрутам») или TraceQL:
+`{ resource.service.name = "openhub" } | select(span.http.route, span.url.path)`.
+Чего модуль сделать не даёт — в комментариях `otel.conf`.
 
 Метрики соединений и запросов (`nginx.connections_*`, `nginx.requests`; в Prometheus — с префиксом `nginx_`) коллектор `lgtm` снимает
 со `stub_status` на внутреннем порту 8080 (`web/nginx/sites-enabled/status`, наружу не публикуется);
