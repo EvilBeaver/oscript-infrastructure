@@ -116,7 +116,7 @@ services:
   
   # OpenHub — hub-new.oscript.io. Секреты — в .env, см. openhub.env.example
   openhub:
-    image: segateekb/openhub:0.7.39
+    image: segateekb/openhub:0.7.40
     restart: unless-stopped
     environment:
       - TZ=UTC
