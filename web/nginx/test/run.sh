@@ -2,7 +2,7 @@
 # Интеграционный тест nginx + OpenTelemetry. Нужен docker compose v2.
 #
 # Проверяет:
-#   1. весь конфиг nginx проходит nginx -t;
+#   1. весь конфиг nginx проходит nginx -t без предупреждений об устаревших директивах;
 #   2. входящий traceparent клиента продолжается: trace id тот же, спан nginx —
 #      дочерний к спану клиента; без входящего заголовка nginx начинает новую трассу;
 #   3. спан nginx с этим trace id и service.name=nginx доходит до коллектора,
@@ -89,7 +89,11 @@ check_request() {
 
 echo "### nginx -t"
 $DC run --rm certs >/dev/null
-$DC run --rm --no-deps nginx nginx -t || fail "nginx -t"
+nginx_t="$($DC run --rm --no-deps nginx nginx -t 2>&1)" || { echo "$nginx_t" >&2; fail "nginx -t"; }
+echo "$nginx_t"
+if echo "$nginx_t" | grep -q deprecated; then
+  fail "в конфиге устаревшие директивы"
+fi
 
 $DC up -d nginx backend collector
 
