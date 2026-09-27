@@ -148,12 +148,14 @@ services:
       - OTEL_SERVICE_NAME=openhub
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-      # Доля трасс 1 % по trace id (traceidratio, не parentbased: nginx открывает спан на каждый
-      # запрос и передаёт traceparent). Пакетный процессор opentelemetry 1.1.1 экспортирует
-      # партию в потоке запроса под одним замком: при 100 % выборки запросы стоят по 60–150 с
-      # (прогон 2026-09-27). Текст запросов в спанах снят — он утяжеляет партию.
-      - OTEL_TRACES_SAMPLER=traceidratio
+      # Выборка трасс решается на входе, в nginx (1 % по trace id, web/nginx/conf.d/otel.conf):
+      # хаб на parentbased наследует её, и выбранная трасса целая — nginx → хаб → база.
+      # Доля здесь — только для собственных корней хаба (фоновые задания, метрики).
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
       - OTEL_TRACES_SAMPLER_ARG=0.01
+      # Спаны вызовов хранилищ сняты: страница давала ~40 спанов, скачивание ~25; экспорт
+      # у библиотеки идёт в потоке запроса, и каждый лишний слой отнимает допустимую долю трасс.
+      - OTEL_ENTITY_REPOSITORY_ENABLED=false
     volumes:
       - openhub_data:/var/lib/openhub
     depends_on:
