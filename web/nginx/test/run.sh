@@ -4,7 +4,8 @@
 # Проверяет:
 #   1. весь конфиг nginx проходит nginx -t без предупреждений об устаревших директивах;
 #   2. входящий traceparent клиента продолжается: trace id тот же, спан nginx —
-#      дочерний к спану клиента; без входящего заголовка nginx начинает новую трассу;
+#      дочерний к спану клиента; родитель с sampled=0 трассу не порождает; без входящего
+#      заголовка nginx начинает новую трассу для 1 % запросов (выборка по trace id);
 #   3. спан nginx с этим trace id и service.name=nginx доходит до коллектора,
 #      а parent-id в заголовке для бэкенда — это id спана nginx (бэкенд встанет к нему дочерним);
 #   4. trace id пишется в access log;
@@ -151,10 +152,40 @@ check_request "https://hub.oscript.io/ с traceparent клиента" "$CLIENT_T
   -k --connect-to hub.oscript.io:443:nginx:443 \
   https://hub.oscript.io/
 
-check_request "POST http://hub.oscript.io/push без traceparent" "" \
+check_request "POST http://hub.oscript.io/push с traceparent клиента" \
+  "00-1af7651916cd43dd8448eb211c80319c-c7ad6b7169203331-01" \
   --connect-to hub.oscript.io:80:nginx:80 \
   -X POST --data 'x' \
   http://hub.oscript.io/push
+
+echo "### родитель с sampled=0: трассы нет"
+UNSAMPLED_TRACE_ID=2af7651916cd43dd8448eb211c80319c
+body="$($DC run --rm --no-deps curl -sSk \
+  -H "traceparent: 00-${UNSAMPLED_TRACE_ID}-${CLIENT_SPAN_ID}-00" \
+  --connect-to hub.oscript.io:443:nginx:443 https://hub.oscript.io/)" \
+  || fail "родитель sampled=0: запрос не прошёл"
+tp="$(traceparent_of "$body")"
+if echo "$tp" | grep -Eq -- '-[0-9a-f][13579bdf]$'; then
+  fail "родитель sampled=0, а бэкенду ушёл sampled-заголовок: $tp"
+fi
+
+echo "### без traceparent: выборка 1 %"
+# 1000 запросов одним curl (глоббинг URL): ждём около 10 трасс. Ноль — выборка не работает
+# (вероятность нуля при исправной — 4e-5), больше 40 — доля заметно выше заявленной.
+$DC run --rm --no-deps curl -sk -o /dev/null \
+  --connect-to hub.oscript.io:443:nginx:443 \
+  "https://hub.oscript.io/ratio-probe?n=[1-1000]" \
+  || fail "выборка: запросы не прошли"
+sleep 7
+sampled="$($DC logs --no-log-prefix collector | grep -c 'url.path: Str(/ratio-probe)' || true)"
+[ "$sampled" -ge 1 ] || fail "выборка: из 1000 запросов без traceparent не выбрана ни одна трасса"
+[ "$sampled" -le 40 ] || fail "выборка: из 1000 запросов выбрано $sampled — это не 1 %"
+echo "OK: выбрано $sampled из 1000"
+
+if $DC logs --no-log-prefix collector | grep -Eq "Trace ID +: $UNSAMPLED_TRACE_ID"; then
+  fail "родитель sampled=0, а спан nginx дошёл до коллектора"
+fi
+echo "OK: unsampled родитель не трассируется"
 
 $DC logs --no-log-prefix collector | grep -q 'service.name: Str(nginx)' \
   || fail "service.name у спанов nginx не nginx"
