@@ -9,6 +9,8 @@ server {
 
     resolver 127.0.0.11 valid=30s;
 
+    include /etc/nginx/snippets/hub.oscript.io-limits.conf;
+
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
@@ -56,6 +58,14 @@ server {
     proxy_redirect off;
 
     resolver 127.0.0.11 valid=30s;
+
+    include /etc/nginx/snippets/hub.oscript.io-limits.conf;
+
+    # robots.txt отдаёт nginx, хаб его не знает; содержимое — web/nginx/robots/hub.oscript.io.txt
+    location = /robots.txt {
+        alias /etc/nginx/robots/hub.oscript.io.txt;
+        charset utf-8;
+    }
 
     location / {
         gzip off;

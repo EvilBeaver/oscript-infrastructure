@@ -12,6 +12,8 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY ssl_conf /etc/nginx/ssl_conf
 COPY sites-enabled /etc/nginx/sites-enabled
 COPY conf.d /etc/nginx/conf.d
+COPY snippets /etc/nginx/snippets
+COPY robots /etc/nginx/robots
 
 # Самоподписанный сертификат для default-сервера
 RUN mkdir /etc/nginx/ssl && \
