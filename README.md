@@ -92,7 +92,29 @@ nginx собран из официального образа с модулем 
 receiver подключён оверлеем `monitoring/otelcol-nginx.yaml`. RPS, ошибки и латентность по трассам
 строит Tempo в `lgtm`: `traces_spanmetrics_*{service="nginx"}`.
 
-Проверка конфига, трассировки и метрик (нужен docker compose v2):
+## robots.txt и пределы частоты hub.oscript.io
+
+`https://hub.oscript.io/robots.txt` отдаёт сам nginx, в хаб запрос не уходит (по http — обычный
+редирект на https). Роботам открыты витрина и страницы пакетов (`/`, `/packages`, `/{пул}`,
+`/{пул}/{пакет}`), закрыты выдача и API, публикация, вход, кабинеты и настройки, служебные пробы,
+вкладки пакета «Версии» и «Зависимости»; `Crawl-delay: 5`. Текст — `web/nginx/robots/hub.oscript.io.txt`.
+
+На сайте hub.oscript.io (https и пуш по http; другие сайты не затронуты) стоят три предохранителя,
+все отвечают `429` с `Retry-After: 60`:
+
+| Предохранитель | Ключ | Предел |
+| --- | --- | --- |
+| роботы | имя робота из `User-Agent` (общее на все его адреса и версии) | 30 запросов в минуту, всплеск 10 |
+| любой клиент | адрес | 30 запросов в секунду, всплеск 300 |
+| одновременные запросы | адрес | 64 |
+
+Роботом считается агент со словом `bot`, `crawler`, `spider` или `slurp` и явные имена без них
+(`facebookexternalhit`, `GoogleOther`, `ChatGPT-User`, …); StatusCake, `openhub-proxy` и телефоны
+Cubot исключены. Темпы, зоны и список роботов — `web/nginx/conf.d/hub-limits.conf`, всплески,
+число одновременных и ответ 429 — `web/nginx/snippets/hub.oscript.io-limits.conf`. Отказы пишутся
+в error log nginx уровнем `warn` («limiting requests, … by zone "hub_robots"»).
+
+Проверка конфига, трассировки, метрик, robots.txt и пределов (нужен docker compose v2):
 
 ```bash
 ./web/nginx/test/run.sh

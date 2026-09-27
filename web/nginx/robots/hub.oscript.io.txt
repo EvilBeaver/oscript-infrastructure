@@ -1,0 +1,73 @@
+# robots.txt хаба пакетов OneScript — hub.oscript.io.
+# Отдаёт nginx из web/nginx/robots/hub.oscript.io.txt, в хаб запрос не уходит.
+#
+# Роботам открыты витрина и страницы пакетов: /, /packages, /{пул}, /{пул}/{пакет}.
+# Закрыто машинное и служебное. Первый сегмент адреса — имя пула, а пул бывает личным
+# и называется логином, поэтому одиночные адреса закрыты точно, а не префиксом:
+# «Disallow: /push» закрыл бы и пул pushkin. «$» — конец адреса, «?» — тот же адрес
+# с параметрами, «/» на конце — всё, что под ним.
+
+User-agent: *
+Crawl-delay: 5
+
+# выдача пакетов и API — для opm и зеркал, не для поиска
+Disallow: /api/
+Disallow: /download/
+Disallow: /dev-channel/
+Disallow: /pools/
+Disallow: /changes$
+Disallow: /changes?
+
+# публикация
+Disallow: /push$
+Disallow: /push?
+
+# вход и регистрация
+Disallow: /login$
+Disallow: /login?
+Disallow: /login/
+Disallow: /logout$
+Disallow: /logout?
+Disallow: /register$
+Disallow: /register?
+Disallow: /forgot-password$
+Disallow: /forgot-password?
+Disallow: /invite$
+Disallow: /invite?
+Disallow: /confirm-email$
+Disallow: /confirm-email?
+Disallow: /setup$
+Disallow: /setup?
+Disallow: /oidc/
+Disallow: /cli/
+
+# кабинеты, настройки и всё, что требует входа
+Disallow: /me$
+Disallow: /me?
+Disallow: /me/
+Disallow: /office$
+Disallow: /office?
+Disallow: /office/
+Disallow: /tour$
+Disallow: /tour?
+Disallow: /hub/
+Disallow: /groups/
+Disallow: /ui/
+Disallow: /*/settings$
+Disallow: /*/settings?
+Disallow: /*/settings/
+
+# служебные пробы и схема API
+Disallow: /health$
+Disallow: /health?
+Disallow: /ready$
+Disallow: /ready?
+Disallow: /v3/
+Disallow: /swagger-ui
+
+# вкладки пакета «Версии» и «Зависимости» и тот же каталог по старому адресу
+Disallow: /*/versions$
+Disallow: /*/versions?
+Disallow: /*/deps$
+Disallow: /*/deps?
+Disallow: /packages/search
