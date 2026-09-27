@@ -13,7 +13,12 @@
 #   6. метрики stub_status доходят до коллектора через оверлей monitoring/otelcol-nginx.yaml,
 #      опрос не попадает в трассы, а снаружи (через сайты) stub_status не отдаётся;
 #   7. спаны по семконвенции OTel HTTP server span: имя — ровно {method} (HTTP для неизвестного
-#      метода; маршрут знает только хаб), стабильные атрибуты, путь — в url.path.
+#      метода; маршрут знает только хаб), стабильные атрибуты, путь — в url.path;
+#   8. robots.txt hub.oscript.io отдаёт сам nginx (в хаб не ходит), по http — редирект на https;
+#   9. ограничение частоты hub.oscript.io: робот по агенту (30 в минуту, всплеск 10; ключ —
+#      имя робота, а не адрес и не вся строка агента), любой клиент по адресу (30/с, всплеск 300),
+#      не больше 64 одновременных запросов с адреса; отказ — 429 с Retry-After; обычный клиент,
+#      мониторинг и зеркала под правило роботов не попадают, другие сайты ограничений не имеют.
 set -eu
 cd "$(dirname "$0")"
 
@@ -129,6 +134,39 @@ check_span_attrs() {
   echo "OK: $# атрибутов"
 }
 
+# hits <аргументы curl...>: по строке «<код> <Retry-After>» на каждый запрос, тела не печатает.
+# Несколько запросов — глоббингом URL ("…?n=[1-40]") или через --next.
+hits() {
+  $DC run --rm --no-deps -T curl -sk -o /dev/null \
+    -w '%{http_code} %header{retry-after}\n' "$@" | tr -d '\r'
+}
+
+# count <код> <вывод hits>: сколько запросов ответили этим кодом
+count() {
+  printf '%s\n' "$2" | grep -c "^$1 " || true
+}
+
+# summary <вывод hits>: «200×11 429×29» — для сообщений
+summary() {
+  printf '%s\n' "$1" | cut -d' ' -f1 | sort | uniq -c | awk '{ printf "%s%s×%s", s, $2, $1; s = " " }'
+}
+
+# Каждый ответ 429 обязан нести Retry-After
+check_retry_after() {
+  name="$1"; out="$2"
+  if printf '%s\n' "$out" | grep -Eq '^429 *$'; then
+    fail "$name: ответ 429 без заголовка Retry-After"
+  fi
+}
+
+# Предел по адресу (30/с, всплеск 300) восстанавливает всплеск за 10 с. Адрес контейнера curl
+# между запусками может повториться, поэтому проверка, считающая запросы по адресу, начинается
+# после паузы — чтобы не донашивать остаток соседней проверки. Роботов разводят разные агенты.
+rest_addr_limit() { sleep 11; }
+
+hub_https() { hits --connect-to hub.oscript.io:443:nginx:443 "$@"; }
+hub_http()  { hits --connect-to hub.oscript.io:80:nginx:80 "$@"; }
+
 echo "### nginx -t"
 # docker compose run собирает образ, только если его нет, — без явной сборки тест гоняет старый конфиг
 $DC build nginx
@@ -172,10 +210,15 @@ fi
 echo "### без traceparent: выборка 1 %"
 # 1000 запросов одним curl (глоббинг URL): ждём около 10 трасс. Ноль — выборка не работает
 # (вероятность нуля при исправной — 4e-5), больше 40 — доля заметно выше заявленной.
-$DC run --rm --no-deps curl -sk -o /dev/null \
+# Темп — 30 в секунду, как предел hub.oscript.io на адрес: проба ходит как обычный клиент
+# и не опирается на всплеск (иначе остаток после соседних проверок решал бы, сколько
+# запросов получат 429). Каждый код ответа — 200, иначе проба мерила бы не то.
+codes="$($DC run --rm --no-deps -T curl -sk -o /dev/null -w '%{http_code}\n' --rate 30/s \
   --connect-to hub.oscript.io:443:nginx:443 \
-  "https://hub.oscript.io/ratio-probe?n=[1-1000]" \
+  "https://hub.oscript.io/ratio-probe?n=[1-1000]" | tr -d '\r')" \
   || fail "выборка: запросы не прошли"
+not_ok="$(printf '%s\n' "$codes" | grep -vc '^200$' || true)"
+[ "$not_ok" -eq 0 ] || fail "выборка: $not_ok из 1000 запросов пробы ответили не 200"
 sleep 7
 sampled="$($DC logs --no-log-prefix collector | grep -c 'url.path: Str(/ratio-probe)' || true)"
 [ "$sampled" -ge 1 ] || fail "выборка: из 1000 запросов без traceparent не выбрана ни одна трасса"
@@ -249,5 +292,122 @@ for proto_port in http:80 https:443; do
   fi
 done
 echo "OK: stub_status"
+
+echo "### robots.txt отдаёт nginx"
+resp="$($DC run --rm --no-deps -T curl -sk -i \
+  --connect-to hub.oscript.io:443:nginx:443 https://hub.oscript.io/robots.txt | tr -d '\r')" \
+  || fail "robots.txt: запрос не прошёл"
+printf '%s\n' "$resp" | head -n1 | grep -q '^HTTP/[0-9.]* 200' \
+  || fail "robots.txt: не 200. Ответ: $resp"
+printf '%s\n' "$resp" | grep -iq '^content-type: text/plain' \
+  || fail "robots.txt: не text/plain. Ответ: $resp"
+for line in 'User-agent: *' 'Disallow: /api/' 'Disallow: /download/'; do
+  printf '%s\n' "$resp" | grep -qxF "$line" || fail "robots.txt: нет строки '$line'. Ответ: $resp"
+done
+# бэкенд whoami отвечает эхом запроса — его следов в robots.txt быть не должно
+if printf '%s\n' "$resp" | grep -Eq '^(Hostname:|GET /robots.txt|X-Real-Ip:)'; then
+  fail "robots.txt: запрос дошёл до хаба. Ответ: $resp"
+fi
+# по http — тот же редирект на https, что и у всего сайта
+redirect="$($DC run --rm --no-deps -T curl -s -o /dev/null -w '%{http_code} %{redirect_url}' \
+  --connect-to hub.oscript.io:80:nginx:80 http://hub.oscript.io/robots.txt)"
+[ "$redirect" = "301 https://hub.oscript.io/robots.txt" ] \
+  || fail "robots.txt по http: ждали 301 на https, пришло '$redirect'"
+echo "OK: robots.txt"
+
+PERPLEXITY='Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)'
+PERPLEXITY_NEXT='Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.1; +https://perplexity.ai/perplexitybot)'
+GPTBOT='Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)'
+FACEBOOK='facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+
+rest_addr_limit
+echo "### робот по агенту: 30 в минуту, всплеск 10"
+# 40 быстрых запросов: всплеск 10 плюс один — 200, остальное — 429
+out="$(hub_https -A "$PERPLEXITY" "https://hub.oscript.io/robot-probe?n=[1-40]")"
+ok="$(count 200 "$out")"; limited="$(count 429 "$out")"
+[ "$ok" -ge 1 ] && [ "$limited" -ge 20 ] \
+  || fail "робот: ждали и 200, и не меньше 20 ответов 429, пришло $(summary "$out")"
+check_retry_after "робот" "$out"
+echo "OK: $(summary "$out"), Retry-After: $(printf '%s\n' "$out" | sed -n 's/^429 //p' | head -n1)"
+
+echo "### тот же робот с другой строкой агента — бюджет общий"
+# ключ — имя робота: новая версия в строке агента не даёт нового всплеска
+out="$(hub_https -A "$PERPLEXITY_NEXT" "https://hub.oscript.io/robot-probe?n=[1-10]")"
+limited="$(count 429 "$out")"
+[ "$limited" -ge 5 ] \
+  || fail "робот: другая версия агента получила свой всплеск, пришло $(summary "$out")"
+echo "OK: $(summary "$out")"
+
+echo "### робот без «bot» в имени (facebookexternalhit)"
+out="$(hub_https -A "$FACEBOOK" "https://hub.oscript.io/robot-probe?n=[1-20]")"
+ok="$(count 200 "$out")"; limited="$(count 429 "$out")"
+[ "$ok" -ge 1 ] && [ "$limited" -ge 5 ] \
+  || fail "facebookexternalhit: ждали и 200, и 429, пришло $(summary "$out")"
+echo "OK: $(summary "$out")"
+
+echo "### робот на пуше по http — ограничение и на http-сервере сайта"
+# Редирект http → https ограничением не проверить: return срабатывает раньше limit_req,
+# и стоит nginx столько же, сколько отказ. В хаб по http ходит только пуш — его и проверяем.
+out="$(hub_http -A "$GPTBOT" "http://hub.oscript.io/push?n=[1-40]")"
+ok="$(count 200 "$out")"; limited="$(count 429 "$out")"
+[ "$ok" -ge 1 ] && [ "$limited" -ge 20 ] \
+  || fail "робот на пуше по http: ждали и 200, и не меньше 20 ответов 429, пришло $(summary "$out")"
+check_retry_after "робот на пуше по http" "$out"
+echo "OK: $(summary "$out")"
+
+echo "### другие сайты не ограничены"
+# Тот же робот, чей бюджет на хабе только что исчерпан, на grafana.oscript.io не упирается.
+# Бэкенда Grafana на стенде нет (ответ 502) — важно лишь, что это не 429.
+out="$(hits --connect-to grafana.oscript.io:443:nginx:443 -A "$PERPLEXITY" \
+  "https://grafana.oscript.io/robot-probe?n=[1-40]")"
+[ "$(count 429 "$out")" -eq 0 ] \
+  || fail "grafana.oscript.io: ограничение хаба задело чужой сайт, пришло $(summary "$out")"
+echo "OK: $(summary "$out")"
+
+rest_addr_limit
+echo "### мониторинг, зеркала и телефоны — не роботы"
+# StatusCake и openhub-proxy исключены явно: исключение обязано победить «bot» в строке.
+# Cubot — марка телефонов: «bot» в модели устройства человека роботом не делает.
+for ua in \
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 StatusCake' \
+  'StatusCakeBot/1.0 (uptime monitoring)' \
+  'openhub-proxy' \
+  'Mozilla/5.0 (Linux; Android 12; CUBOT KingKong 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
+do
+  out="$(hub_https -A "$ua" "https://hub.oscript.io/agent-probe?n=[1-40]")"
+  [ "$(count 429 "$out")" -eq 0 ] && [ "$(count 200 "$out")" -eq 40 ] \
+    || fail "агент '$ua' попал под правило роботов: $(summary "$out")"
+  echo "OK: $(summary "$out") — $ua"
+done
+
+rest_addr_limit
+echo "### обычный клиент без агента: 250 быстрых запросов — ни одного 429"
+out="$(hub_https -H 'User-Agent:' "https://hub.oscript.io/client-probe?n=[1-250]")"
+[ "$(count 200 "$out")" -eq 250 ] \
+  || fail "обычный клиент: ждали 250 ответов 200, пришло $(summary "$out")"
+echo "OK: $(summary "$out")"
+
+rest_addr_limit
+echo "### обезумевший клиент: 1000 запросов залпом — всплеск 300, дальше 429"
+# 16 параллельных потоков по HTTP/2 — быстрее предела в разы, но ниже предела одновременных.
+# Пройти успевают всплеск и то, что набежит по 30/с за время залпа.
+out="$(hub_https -H 'User-Agent:' --parallel --parallel-max 16 \
+  "https://hub.oscript.io/flood-probe?n=[1-1000]")"
+ok="$(count 200 "$out")"; limited="$(count 429 "$out")"
+[ "$ok" -ge 300 ] && [ "$limited" -ge 100 ] \
+  || fail "обезумевший клиент: ждали не меньше 300 ответов 200 и 100 ответов 429, пришло $(summary "$out")"
+check_retry_after "обезумевший клиент" "$out"
+echo "OK: $(summary "$out")"
+
+rest_addr_limit
+echo "### одновременные запросы с адреса: не больше 64"
+# 100 медленных запросов разом (whoami держит ответ 3 с): 64 проходят, остальным — 429
+out="$(hub_https -H 'User-Agent:' --parallel --parallel-max 100 \
+  "https://hub.oscript.io/slow-probe?wait=3s&n=[1-100]")"
+ok="$(count 200 "$out")"; limited="$(count 429 "$out")"
+[ "$ok" -ge 1 ] && [ "$ok" -le 64 ] && [ "$limited" -ge 30 ] \
+  || fail "одновременные: ждали не больше 64 ответов 200 и не меньше 30 ответов 429, пришло $(summary "$out")"
+check_retry_after "одновременные" "$out"
+echo "OK: $(summary "$out")"
 
 echo "nginx otel test OK."
