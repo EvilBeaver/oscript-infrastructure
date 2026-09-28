@@ -301,7 +301,7 @@ printf '%s\n' "$resp" | head -n1 | grep -q '^HTTP/[0-9.]* 200' \
   || fail "robots.txt: не 200. Ответ: $resp"
 printf '%s\n' "$resp" | grep -iq '^content-type: text/plain' \
   || fail "robots.txt: не text/plain. Ответ: $resp"
-for line in 'User-agent: *' 'Disallow: /api/' 'Disallow: /download/'; do
+for line in 'User-agent: *' 'Disallow: /api/' 'Disallow: /download/' 'Disallow: /pools/*/download/'; do
   printf '%s\n' "$resp" | grep -qxF "$line" || fail "robots.txt: нет строки '$line'. Ответ: $resp"
 done
 # бэкенд whoami отвечает эхом запроса — его следов в robots.txt быть не должно
