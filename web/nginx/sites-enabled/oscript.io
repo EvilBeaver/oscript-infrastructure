@@ -37,6 +37,17 @@ server {
     
     resolver 127.0.0.11 valid=30s;
 
+    # Вебхук публикации из GitHub Actions: сайт отвечает, когда уже скачал файлы версии с GitHub
+    location = /api/publish {
+        proxy_set_header X-Real-IP  $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_read_timeout 1200;
+        set $target_url http://site:3030;
+        proxy_pass $target_url;
+    }
+
     location / {
         proxy_set_header X-Real-IP  $remote_addr;
         proxy_set_header X-Forwarded-For $remote_addr;
