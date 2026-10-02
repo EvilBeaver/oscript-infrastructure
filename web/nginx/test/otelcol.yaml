@@ -1,0 +1,28 @@
+# Тестовый коллектор: те же receivers и пайплайны, что в дефолтном конфиге grafana/otel-lgtm
+# (otlp + prometheus/collector), только экспорт — в лог (debug), а не в Tempo/Prometheus.
+# Поверх него грузится боевой оверлей monitoring/otelcol-nginx.yaml.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+  prometheus/collector:
+    config:
+      scrape_configs:
+        - job_name: "opentelemetry-collector"
+          scrape_interval: 10s
+          static_configs:
+            - targets: ["127.0.0.1:8888"]
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp, prometheus/collector]
+      exporters: [debug]

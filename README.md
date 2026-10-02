@@ -29,3 +29,112 @@
    * Публикация в основном канале хаба, если это ветка master.
   
 Этот документ можно обсуждать и предлагать к нему правки.
+
+## OpenHub — hub-new.oscript.io
+
+Новый хаб пакетов ([OpenHub](https://github.com/Segate-ekb/openhub)) живёт в том же `docker-compose.yml`:
+
+| Сервис | Что это |
+| --- | --- |
+| `openhub` | сам хаб, образ `segateekb/openhub`; |
+| `openhub_db` | PostgreSQL хаба;|
+| `lgtm` | мониторинг хаба одним контейнером (`grafana/otel-lgtm`), Grafana — grafana.oscript.io; дашборд хаба — в `monitoring/` |
+
+Файлы пакетов хаб хранит в общем MinIO
+
+### Первый запуск на работающем сервере
+
+1. Добавить в `.env` переменные из [`openhub.env.example`](openhub.env.example).
+2. Завести DNS-записи `hub-new.oscript.io` и `grafana.oscript.io` на сервер.
+3. Выпустить сертификаты и пересобрать nginx с новыми сайтами:
+
+   ```bash
+   ./add-letsencrypt-domain.sh hub-new.oscript.io
+   ./add-letsencrypt-domain.sh grafana.oscript.io
+   ```
+4. Завести в MinIO бакет `openhub` и учётку хаба с ключами `OPENHUB_S3_ACCESS_KEY` /
+   `OPENHUB_S3_SECRET_KEY` из `.env` — руками, один раз.
+5. Поднять хаб — база и мониторинг поднимутся сами:
+
+6. Сразу открыть <https://hub-new.oscript.io/setup> и завести первого администратора.
+
+### Перенос данных из старого хаба
+
+Зеркалирование привозит из opm-hub только имена, версии и файлы пакетов — дат публикации
+в его протоколе нет, поэтому у всех перенесённых версий дата равна дню прогона зеркала.
+Вернуть настоящие даты и дописать метаданные, которых нет в манифестах, разовым запросом
+между двумя базами: [`openhub-migration/`](openhub-migration/README.md).
+
+## Трассировка nginx
+
+nginx собран из официального образа с модулем [ngx_otel_module](https://nginx.org/ru/docs/ngx_otel_module.html)
+и шлёт спаны в `lgtm` (OTLP/gRPC, порт 4317) — трассы видны в Grafana рядом с трассами хаба.
+Входящий W3C `traceparent` клиента nginx продолжает (trace id сохраняется), без него начинает
+новую трассу; в бэкенд уходит тот же trace id с parent-id спана nginx, так что спаны OpenHub
+встают дочерними к спану nginx; `trace_id` пишется и в access log. Настройки — `web/nginx/conf.d/otel.conf`.
+Спаны — по [семконвенции OTel для HTTP server span](https://opentelemetry.io/docs/specs/semconv/http/http-spans/):
+имя — `{method}`, конкретный путь — в атрибуте `url.path`; стабильные атрибуты (`http.request.method`,
+`url.path`, `server.address`, …) пишутся вместе со старыми, которые модуль ставит сам. Маршрут nginx
+не знает: его знает хаб, спан OpenHub называется `{метод} {шаблон маршрута}` и несёт `http.route`.
+Маршруты — на дашборде хаба (панели «Свежие запросы» и «Темп запросов по маршрутам») или TraceQL:
+`{ resource.service.name = "openhub" } | select(span.http.route, span.url.path)`.
+Чего модуль сделать не даёт — в комментариях `otel.conf`.
+
+Трассируется не каждый запрос: выборка решается на входе, в nginx. Запрос с входящим `traceparent`
+идёт по решению родителя (флаг `sampled`), запрос без него — 1 % по trace id (`split_clients`).
+Хаб стоит на `parentbased` и наследует это решение, поэтому выбранная трасса целая: nginx → хаб → база.
+Полная выборка хабу не по силам: его библиотека телеметрии экспортирует в потоке запроса, и под
+нагрузкой запросы стояли по минуте. RPS по всем запросам поэтому смотрим по метрикам, а не по трассам:
+`traces_spanmetrics_*` видит только выбранный процент.
+
+Метрики соединений и запросов (`nginx.connections_*`, `nginx.requests`; в Prometheus — с префиксом `nginx_`) коллектор `lgtm` снимает
+со `stub_status` на внутреннем порту 8080 (`web/nginx/sites-enabled/status`, наружу не публикуется);
+receiver подключён оверлеем `monitoring/otelcol-nginx.yaml`. RPS, ошибки и латентность по трассам
+строит Tempo в `lgtm`: `traces_spanmetrics_*{service="nginx"}`.
+
+## robots.txt и пределы частоты hub.oscript.io
+
+`https://hub.oscript.io/robots.txt` отдаёт сам nginx, в хаб запрос не уходит (по http — обычный
+редирект на https). Роботам открыты витрина и страницы пакетов (`/`, `/packages`, `/{пул}`,
+`/{пул}/{пакет}`), закрыты выдача и API, публикация, вход, кабинеты и настройки, служебные пробы,
+вкладки пакета «Версии» и «Зависимости»; `Crawl-delay: 5`. Текст — `web/nginx/robots/hub.oscript.io.txt`.
+
+На сайте hub.oscript.io (https и пуш по http; другие сайты не затронуты) стоят три предохранителя,
+все отвечают `429` с `Retry-After: 60`:
+
+| Предохранитель | Ключ | Предел |
+| --- | --- | --- |
+| роботы | имя робота из `User-Agent` (общее на все его адреса и версии) | 30 запросов в минуту, всплеск 10 |
+| любой клиент | адрес | 50 запросов в секунду, всплеск 500 |
+| одновременные запросы | адрес | 64 |
+
+Роботом считается агент со словом `bot`, `crawler`, `spider` или `slurp` и явные имена без них
+(`facebookexternalhit`, `GoogleOther`, `ChatGPT-User`, …); StatusCake, `openhub-proxy` и телефоны
+Cubot исключены. Темпы, зоны и список роботов — `web/nginx/conf.d/hub-limits.conf`, всплески,
+число одновременных и ответ 429 — `web/nginx/snippets/hub.oscript.io-limits.conf`. Отказы пишутся
+в error log nginx уровнем `warn` («limiting requests, … by zone "hub_robots"»).
+
+Предел по адресу подобран по журналу nginx за трое суток так, чтобы не задевать живых клиентов,
+включая ночные зеркала. Адрес — не всегда один клиент: за одним NAT бывает целая сеть или парк
+раннеров CI, а `172.18.0.1` — шлюз докера, с которого зеркала самого стека (`openhub-proxy`)
+ходят на внешний адрес хаба; все они делят один бюджет.
+
+Проверка конфига, трассировки, метрик, robots.txt и пределов (нужен docker compose v2):
+
+```bash
+./web/nginx/test/run.sh
+```
+
+## Метрики хоста
+
+Сервис `hostmetrics` (OTel Collector, receiver `hostmetrics`) снимает CPU, загрузку, память, swap,
+диски, файловые системы и сеть сервера и шлёт их в `lgtm`; в Prometheus это метрики `system_*`
+с `host_name`. Корень хоста смонтирован в контейнер только на чтение (`/:/hostfs:ro`), сервис живёт
+в сети хоста (иначе видна сеть контейнера), поэтому OTLP-порт `lgtm` опубликован на `127.0.0.1:4317`.
+Имя хоста в метриках — `OTEL_HOST_NAME` из `.env` (по умолчанию `oscript.io`). Конфиг — `monitoring/otelcol-host.yaml`.
+
+Проверка (Linux-хост с Docker):
+
+```bash
+./monitoring/test/run.sh
+```

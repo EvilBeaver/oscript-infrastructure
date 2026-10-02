@@ -5,7 +5,7 @@ if ! [ -x "$(command -v docker-compose)" ]; then
   exit 1
 fi
 
-domains=(hub.oscript.io oscript.io build.oscript.io s3.oscript.io)
+domains=(hub.oscript.io oscript.io build.oscript.io s3.oscript.io hub-new.oscript.io grafana.oscript.io)
 rsa_key_size=4096
 data_path="./web/certbot"
 ssl_conf_path="./web/nginx/ssl_conf"

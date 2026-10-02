@@ -1,0 +1,65 @@
+# Тестовый стенд nginx + OpenTelemetry. Запуск: ./web/nginx/test/run.sh
+#
+# Вместо боевых сервисов:
+#   certs     — самоподписанные сертификаты на все домены из sites-enabled
+#   backend   — эхо заголовков под именем openhub (сюда ведёт hub.oscript.io)
+#   collector — OTLP-коллектор под именем lgtm, печатает принятые спаны и метрики в лог
+name: nginx-otel-test
+
+services:
+  certs:
+    image: alpine:3.20
+    volumes:
+      - ../sites-enabled:/sites-enabled:ro
+      - letsencrypt:/etc/letsencrypt
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        apk add --no-cache openssl >/dev/null
+        for domain in $$(grep -ho 'letsencrypt/live/[^/]*/' /sites-enabled/* | cut -d/ -f3 | sort -u); do
+          mkdir -p /etc/letsencrypt/live/$$domain
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+            -keyout /etc/letsencrypt/live/$$domain/privkey.pem \
+            -out /etc/letsencrypt/live/$$domain/fullchain.pem \
+            -subj "/CN=$$domain" 2>/dev/null
+          echo "cert: $$domain"
+        done
+
+  nginx:
+    build: ..
+    volumes:
+      - letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+
+  backend:
+    image: traefik/whoami:v1.10
+    command: ["--port", "3333"]
+    networks:
+      default:
+        aliases:
+          - openhub
+
+  collector:
+    # contrib — ради receiver nginx; поверх тестового конфига тот же оверлей, что монтируется в lgtm
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    command:
+      - --config=/etc/otelcol/config.yaml
+      - --config=/etc/otelcol/otelcol-nginx.yaml
+    volumes:
+      - ./otelcol.yaml:/etc/otelcol/config.yaml:ro
+      - ../../../monitoring/otelcol-nginx.yaml:/etc/otelcol/otelcol-nginx.yaml:ro
+    networks:
+      default:
+        aliases:
+          - lgtm
+
+  curl:
+    image: curlimages/curl:8.8.0
+    profiles: ["client"]
+
+volumes:
+  letsencrypt:

@@ -1,0 +1,26 @@
+# Внутренний статус nginx для метрик: коллектор lgtm опрашивает http://nginx:8080/nginx_status
+# (monitoring/otelcol-nginx.yaml). Порт 8080 наружу не публикуется — в docker-compose.yml
+# у nginx проброшены только 80 и 443.
+server {
+    listen 8080;
+    server_name _;
+
+    access_log off;
+
+    # опрос раз в 10 секунд не нужен в трассах
+    otel_trace off;
+
+    location = /nginx_status {
+        stub_status;
+
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        allow 172.16.0.0/12;
+        allow 192.168.0.0/16;
+        deny all;
+    }
+
+    location / {
+        return 404;
+    }
+}

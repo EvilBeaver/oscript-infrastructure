@@ -18,6 +18,7 @@ services:
       - certbot
       - minio
       - jenkins
+      - lgtm
   
   site:
     image: oscript/backend
@@ -106,11 +107,121 @@ services:
       - MINIO_ROOT_PASSWORD
       - JENKINS_S3_ACCESS_KEY
       - JENKINS_S3_SECRET_KEY
+      - OPENHUB_S3_ACCESS_KEY
+      - OPENHUB_S3_SECRET_KEY
     volumes:
       - minio_data:/data
+    ports:
+      - "127.0.0.1:9001:9001"
+  
+  # OpenHub — hub-new.oscript.io. Секреты — в .env, см. openhub.env.example
+  openhub:
+    image: segateekb/openhub:0.7.40
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+      - OSHUB_INSTANCE_URL=https://hub.oscript.io
+      - OSHUB_INSTANCE_TRUSTED_PROXIES=10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+      - data_ИсточникиДанных_ТипКоннектора=КоннекторPostgreSQL
+      - data_ИсточникиДанных_СтрокаСоединения=Host=openhub_db;Username=openhub;Password=${OPENHUB_DB_PASSWORD};Database=openhub;KeepAlive=10
+      - OSHUB_DB_POOL_SIZE=50
+      - OSHUB_LOG_LEVEL=INFO
+      # OSHUB_LOG_LEVELS с телеметрией не задавать: OTel-аппендер logos не переспрашивает уровень
+      # своего лога, и точечный DEBUG одного логгера уезжает в коллектор от ВСЕХ логгеров
+      # (ДЕПЛОЙ, ЗНАНИЕ: ЧЕРНОВИК-AUTUMN-LOGOS-уровень-способа-вывода-глушит-точечные). Прогон
+      # 2026-09-27: при DEBUG на двух редких логгерах в Loki уезжало 30 строк/с отладки всего хаба,
+      # экспорт журнала в потоке запроса не успевал, установки и страницы стояли по 30–50 с.
+      - OSHUB_STORAGE_BACKEND=s3
+      - OSHUB_STORAGE_S3_ENDPOINT=http://minio:9000
+      - OSHUB_STORAGE_S3_BUCKET=openhub
+      - OSHUB_STORAGE_S3_REGION=us-east-1
+      - OSHUB_STORAGE_S3_FORCE__PATH__STYLE=true
+      - OSHUB_STORAGE_S3_ACCESS_KEY=${OPENHUB_S3_ACCESS_KEY}
+      - OSHUB_STORAGE_S3_SECRET_KEY=${OPENHUB_S3_SECRET_KEY}
+      - Kestrel__Limits__MaxRequestBodySize=134217728
+      - OSHUB_PUBLISH_MAX__UPLOAD__BYTES=134217728
+      - OSHUB_PUBLISH_MAX__UNPACKED__BYTES=268435456
+      - OSHUB_PUBLISH_MAX__FILES=20000
+      - OSHUB_GEO_UPDATE_ENABLED=true
+      - WINOW_OPENAPI_ВКЛЮЧЕНО=true
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=openhub
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      # Выборка трасс решается на входе, в nginx (1 % по trace id, web/nginx/conf.d/otel.conf):
+      # хаб на parentbased наследует её, и выбранная трасса целая — nginx → хаб → база.
+      # Доля здесь — только для собственных корней хаба (фоновые задания, метрики).
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=0.01
+      # Спаны вызовов хранилищ сняты: страница давала ~40 спанов, скачивание ~25; экспорт
+      # у библиотеки идёт в потоке запроса, и каждый лишний слой отнимает допустимую долю трасс.
+      - OTEL_ENTITY_REPOSITORY_ENABLED=false
+    volumes:
+      - openhub_data:/var/lib/openhub
+    depends_on:
+      - openhub_db
+      - minio
+      - lgtm
+    networks:
+      - default
+      - openhub
+
+  openhub_db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=openhub
+      - POSTGRES_DB=openhub
+      - POSTGRES_PASSWORD=${OPENHUB_DB_PASSWORD}
+    volumes:
+      - openhub_postgres_data:/var/lib/postgresql/data
+    networks:
+      - openhub
+
+  # Мониторинг OpenHub одним контейнером: коллектор OTLP, Prometheus, Tempo, Loki и Grafana.
+  # Наружу смотрит только Grafana: grafana.oscript.io
+  lgtm:
+    image: grafana/otel-lgtm:0.33.1
+    restart: unless-stopped
+    environment:
+      - GF_SERVER_ROOT_URL=https://grafana.oscript.io
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?задайте GRAFANA_ADMIN_PASSWORD в .env}
+      # В образе анонимный вход по умолчанию открыт с ролью Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      # Метрики nginx (stub_status): оверлей к конфигу встроенного коллектора
+      - OTELCOL_EXTRA_ARGS=--config=file:/otel-lgtm/otelcol-nginx.yaml
+    volumes:
+      - lgtm_data:/data
+      - ./monitoring/grafana-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/openhub.yaml:ro
+      - ./monitoring/openhub-dashboard.json:/otel-lgtm/openhub/openhub-dashboard.json:ro
+      - ./monitoring/openhub-reference-dashboard.json:/otel-lgtm/openhub/openhub-reference-dashboard.json:ro
+      - ./monitoring/otelcol-nginx.yaml:/otel-lgtm/otelcol-nginx.yaml:ro
+    ports:
+      # OTLP/gRPC для hostmetrics: он в сети хоста и lgtm по имени не видит. Только localhost.
+      - "127.0.0.1:4317:4317"
+
+  # Метрики хоста (CPU, загрузка, память, диски, ФС, сеть) → lgtm. Конфиг — monitoring/otelcol-host.yaml
+  hostmetrics:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # сеть хоста: иначе скрейпер network видит интерфейсы контейнера, а не сервера
+    network_mode: host
+    environment:
+      - OTLP_ENDPOINT=127.0.0.1:4317
+      - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript.io}
+    volumes:
+      - /:/hostfs:ro
+      - ./monitoring/otelcol-host.yaml:/etc/otelcol/config.yaml:ro
+
+networks:
+  openhub:
 
 volumes:
   web_content:
   jenkins_home:
   postgres_data:
   minio_data:
+  openhub_data:
+  openhub_postgres_data:
+  lgtm_data:
