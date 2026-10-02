@@ -12,6 +12,7 @@ cd "$(dirname "$0")"
 DC="docker compose"
 # extends читает корневой docker-compose.yml целиком, а там есть обязательные переменные
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-test}"
+export GRAFANA_DB_PASSWORD="${GRAFANA_DB_PASSWORD:-test}"
 
 cleanup() { $DC down -v --remove-orphans >/dev/null 2>&1 || true; }
 trap cleanup EXIT

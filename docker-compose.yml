@@ -55,6 +55,12 @@ services:
   jenkins:
     build: jenkins
     image: osjenkins
+    environment:
+      # Без предела JVM берёт под кучу четверть памяти машины (988 МиБ из 4 ГБ) и держит её,
+      # хотя живых данных не больше 320 МиБ. Замер 2026-09-27: процесс 1,67 ГБ, из них 1,1 ГБ
+      # в свопе, на него приходится 81–93 % тяжёлых страничных отказов сервера.
+      # jenkins.sh склеивает JAVA_OPTS с JENKINS_JAVA_OPTS из образа, они друг друга не затирают.
+      - JAVA_OPTS=-Xmx640m
     ports:
       - "8080"
       - "50000:50000"
@@ -114,14 +120,17 @@ services:
     ports:
       - "127.0.0.1:9001:9001"
   
-  # OpenHub — hub-new.oscript.io. Секреты — в .env, см. openhub.env.example
+  # OpenHub — hub.oscript.io. Секреты — в .env, см. openhub.env.example
+  # Имена переменных — по правилу хаба (с 0.8.0): точка ключа настройки становится подчёркиванием,
+  # подчёркивание внутри слова удваивается (oshub.instance.trusted_proxies →
+  # OSHUB_INSTANCE_TRUSTED__PROXIES). Имя с одинарным подчёркиванием хаб молча не прочитает.
   openhub:
-    image: segateekb/openhub:0.7.40
+    image: segateekb/openhub:0.11.0
     restart: unless-stopped
     environment:
       - TZ=UTC
       - OSHUB_INSTANCE_URL=https://hub.oscript.io
-      - OSHUB_INSTANCE_TRUSTED_PROXIES=10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+      - OSHUB_INSTANCE_TRUSTED__PROXIES=10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
       - data_ИсточникиДанных_ТипКоннектора=КоннекторPostgreSQL
       - data_ИсточникиДанных_СтрокаСоединения=Host=openhub_db;Username=openhub;Password=${OPENHUB_DB_PASSWORD};Database=openhub;KeepAlive=10
       - OSHUB_DB_POOL_SIZE=50
@@ -136,14 +145,15 @@ services:
       - OSHUB_STORAGE_S3_BUCKET=openhub
       - OSHUB_STORAGE_S3_REGION=us-east-1
       - OSHUB_STORAGE_S3_FORCE__PATH__STYLE=true
-      - OSHUB_STORAGE_S3_ACCESS_KEY=${OPENHUB_S3_ACCESS_KEY}
-      - OSHUB_STORAGE_S3_SECRET_KEY=${OPENHUB_S3_SECRET_KEY}
+      - OSHUB_STORAGE_S3_ACCESS__KEY=${OPENHUB_S3_ACCESS_KEY}
+      - OSHUB_STORAGE_S3_SECRET__KEY=${OPENHUB_S3_SECRET_KEY}
       - Kestrel__Limits__MaxRequestBodySize=134217728
       - OSHUB_PUBLISH_MAX__UPLOAD__BYTES=134217728
       - OSHUB_PUBLISH_MAX__UNPACKED__BYTES=268435456
       - OSHUB_PUBLISH_MAX__FILES=20000
       - OSHUB_GEO_UPDATE_ENABLED=true
-      - WINOW_OPENAPI_ВКЛЮЧЕНО=true
+      # Описание API: страница /swagger-ui.html, схема /v3/api-docs и /v3/api-docs.yaml
+      - OSHUB_OPENAPI_ENABLED=true
       - OTEL_ENABLED=true
       - OTEL_SERVICE_NAME=openhub
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
@@ -190,15 +200,23 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=false
       # Метрики nginx (stub_status): оверлей к конфигу встроенного коллектора
       - OTELCOL_EXTRA_ARGS=--config=file:/otel-lgtm/otelcol-nginx.yaml
+      # Роль grafana_ro базы хаба: справочный дашборд читает каталог и скачивания по дням.
+      # Роль заводится руками, monitoring/grafana-db-role.sql
+      - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD:?задайте GRAFANA_DB_PASSWORD в .env}
     volumes:
       - lgtm_data:/data
       - ./monitoring/grafana-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/openhub.yaml:ro
+      - ./monitoring/grafana-datasource-openhub-db.yaml:/otel-lgtm/grafana/conf/provisioning/datasources/openhub-db.yaml:ro
       - ./monitoring/openhub-dashboard.json:/otel-lgtm/openhub/openhub-dashboard.json:ro
       - ./monitoring/openhub-reference-dashboard.json:/otel-lgtm/openhub/openhub-reference-dashboard.json:ro
       - ./monitoring/otelcol-nginx.yaml:/otel-lgtm/otelcol-nginx.yaml:ro
     ports:
       # OTLP/gRPC для hostmetrics: он в сети хоста и lgtm по имени не видит. Только localhost.
       - "127.0.0.1:4317:4317"
+    networks:
+      - default
+      # сеть базы хаба: Grafana ходит в openhub_db ролью только на чтение
+      - openhub
 
   # Метрики хоста (CPU, загрузка, память, диски, ФС, сеть) → lgtm. Конфиг — monitoring/otelcol-host.yaml
   hostmetrics:
