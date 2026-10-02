@@ -129,7 +129,7 @@ services:
   # подчёркивание внутри слова удваивается (oshub.instance.trusted_proxies →
   # OSHUB_INSTANCE_TRUSTED__PROXIES). Имя с одинарным подчёркиванием хаб молча не прочитает.
   openhub:
-    image: segateekb/openhub:0.11.0
+    image: segateekb/openhub:0.14.4
     restart: unless-stopped
     environment:
       - TZ=UTC
