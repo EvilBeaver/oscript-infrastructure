@@ -5,7 +5,7 @@ server {
 
     access_log /var/log/nginx/access.log with_host;
 
-    client_max_body_size 128M;
+    client_max_body_size 200M;
 
     resolver 127.0.0.11 valid=30s;
 
@@ -53,7 +53,7 @@ server {
 
     add_header Strict-Transport-Security "max-age=31536000" always;
 
-    client_max_body_size 128M;
+    client_max_body_size 200M;
 
     proxy_redirect off;
 
