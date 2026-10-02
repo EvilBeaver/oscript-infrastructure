@@ -1,11 +1,13 @@
 # robots.txt хаба пакетов OneScript — hub.oscript.io.
 # Отдаёт nginx из web/nginx/robots/hub.oscript.io.txt, в хаб запрос не уходит.
 #
-# Роботам открыты витрина и страницы пакетов: /, /packages, /{пул}, /{пул}/{пакет}.
-# Закрыто машинное и служебное. Первый сегмент адреса — имя пула, а пул бывает личным
-# и называется логином, поэтому одиночные адреса закрыты точно, а не префиксом:
-# «Disallow: /push» закрыл бы и пул pushkin. «$» — конец адреса, «?» — тот же адрес
-# с параметрами, «/» на конце — всё, что под ним.
+# Роботам открыты витрина и страницы пулов и пакетов: /, /packages, /pools/{пул},
+# /pools/{пул}/packages/{пакет}. Закрыто машинное и служебное. Под /pools/ живут и страницы,
+# и выдача, поэтому префикс целиком не закрыт, а машинные адреса названы по одному.
+# «$» — конец адреса, «?» — тот же адрес с параметрами, «/» на конце — всё, что под ним.
+# «*» проходит и через «/»: правила /pools/*/push и /pools/*/changes закрывают заодно
+# страницы пакетов с именами push и changes, а /*/settings, /*/versions, /*/deps — пулы
+# и пакеты с такими именами.
 
 User-agent: *
 Crawl-delay: 5
@@ -14,13 +16,18 @@ Crawl-delay: 5
 Disallow: /api/
 Disallow: /download/
 Disallow: /dev-channel/
-Disallow: /pools/
+Disallow: /pools/*/download/
+Disallow: /pools/*/channels/
+Disallow: /pools/*/changes$
+Disallow: /pools/*/changes?
 Disallow: /changes$
 Disallow: /changes?
 
 # публикация
 Disallow: /push$
 Disallow: /push?
+Disallow: /pools/*/push$
+Disallow: /pools/*/push?
 
 # вход и регистрация
 Disallow: /login$
@@ -65,7 +72,7 @@ Disallow: /ready?
 Disallow: /v3/
 Disallow: /swagger-ui
 
-# вкладки пакета «Версии» и «Зависимости» и тот же каталог по старому адресу
+# вкладки пакета «Версии» и «Зависимости» и поиск по каталогу
 Disallow: /*/versions$
 Disallow: /*/versions?
 Disallow: /*/deps$
