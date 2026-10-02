@@ -61,6 +61,8 @@ services:
       # в свопе, на него приходится 81–93 % тяжёлых страничных отказов сервера.
       # jenkins.sh склеивает JAVA_OPTS с JENKINS_JAVA_OPTS из образа, они друг друга не затирают.
       - JAVA_OPTS=-Xmx640m
+      - HTTPS_PROXY=http://host.docker.internal:8888
+      - HTTP_PROXY=http://host.docker.internal:8888
     ports:
       - "8080"
       - "50000:50000"
@@ -68,6 +70,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - jenkins_home:/var/jenkins_home
       - web_content:/var/www
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
 
   opm_hub_db:
     image: postgres:12
