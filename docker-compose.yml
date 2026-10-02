@@ -149,6 +149,8 @@ services:
       - OSHUB_STORAGE_S3_BUCKET=openhub
       - OSHUB_STORAGE_S3_REGION=us-east-1
       - OSHUB_STORAGE_S3_FORCE__PATH__STYLE=true
+      # Один срок ожидания ответа на каждый запрос к S3; тем же сроком хаб ждёт Telegram.
+      - OSHUB_STORAGE_S3_TIMEOUT_SEC=30
       - OSHUB_STORAGE_S3_ACCESS__KEY=${OPENHUB_S3_ACCESS_KEY}
       - OSHUB_STORAGE_S3_SECRET__KEY=${OPENHUB_S3_SECRET_KEY}
       - Kestrel__Limits__MaxRequestBodySize=196608000
