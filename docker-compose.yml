@@ -196,15 +196,23 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=false
       # Метрики nginx (stub_status): оверлей к конфигу встроенного коллектора
       - OTELCOL_EXTRA_ARGS=--config=file:/otel-lgtm/otelcol-nginx.yaml
+      # Роль grafana_ro базы хаба: справочный дашборд читает каталог и скачивания по дням.
+      # Роль заводится руками, monitoring/grafana-db-role.sql
+      - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD:?задайте GRAFANA_DB_PASSWORD в .env}
     volumes:
       - lgtm_data:/data
       - ./monitoring/grafana-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/openhub.yaml:ro
+      - ./monitoring/grafana-datasource-openhub-db.yaml:/otel-lgtm/grafana/conf/provisioning/datasources/openhub-db.yaml:ro
       - ./monitoring/openhub-dashboard.json:/otel-lgtm/openhub/openhub-dashboard.json:ro
       - ./monitoring/openhub-reference-dashboard.json:/otel-lgtm/openhub/openhub-reference-dashboard.json:ro
       - ./monitoring/otelcol-nginx.yaml:/otel-lgtm/otelcol-nginx.yaml:ro
     ports:
       # OTLP/gRPC для hostmetrics: он в сети хоста и lgtm по имени не видит. Только localhost.
       - "127.0.0.1:4317:4317"
+    networks:
+      - default
+      # сеть базы хаба: Grafana ходит в openhub_db ролью только на чтение
+      - openhub
 
   # Метрики хоста (CPU, загрузка, память, диски, ФС, сеть) → lgtm. Конфиг — monitoring/otelcol-host.yaml
   hostmetrics:

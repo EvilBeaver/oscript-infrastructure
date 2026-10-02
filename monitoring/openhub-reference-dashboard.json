@@ -1,7 +1,7 @@
 {
   "uid": "openhub-reference",
   "title": "OpenHub — справочник",
-  "description": "Сколько в хабе накоплено: пулы, пакеты, версии, учётки, место в хранилище, скачивания за всё время, и что копилось за выбранный период — публикации, зеркала, уведомления. Что хаб делает сейчас — на дашборде «OpenHub — наблюдаемость».",
+  "description": "Сколько в хабе накоплено: пулы, пакеты, версии, учётки, место в хранилище, скачивания за всё время, и что копилось за выбранный период — публикации, зеркала, уведомления. Пакеты и их скачивания читаются из базы хаба, остальное — из метрик. Что хаб делает сейчас — на дашборде «OpenHub — наблюдаемость».",
   "tags": [
     "openhub"
   ],
@@ -24,7 +24,40 @@
     ]
   },
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "pool",
+        "label": "Пул",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "description": "Отбирает строки таблицы пулов и все панели пакетов. Числа в ряду «Каталог» и события за период считаются по хабу целиком.",
+        "definition": "label_values(oshub_storage_used_bytes{service_name=\"openhub\"}, oshub_pool)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(oshub_storage_used_bytes{service_name=\"openhub\"}, oshub_pool)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "options": []
+      }
+    ]
   },
   "annotations": {
     "list": [
@@ -461,7 +494,7 @@
     {
       "type": "table",
       "title": "Что где лежит",
-      "description": "Пулы хаба: сколько места занимают их артефакты сейчас и что с ними происходило за выбранный период — скачивания, публикации, версии, пришедшие через зеркало. Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
+      "description": "Пулы хаба: сколько места занимают их артефакты сейчас и что с ними происходило за выбранный период — скачивания, публикации, версии, пришедшие через зеркало. Отбор «Пул» оставляет выбранные. Считается по счётчикам процессов хаба за выбранный период; Prometheus хранит 15 дней, дальше в прошлое период не дотянется.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -581,7 +614,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"}))))",
+          "expr": "sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\", oshub_pool=~\"$pool\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\", oshub_pool=~\"$pool\"}))))",
           "range": false,
           "instant": true,
           "format": "table"
@@ -593,7 +626,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (oshub_pool) (increase(oshub_downloads_total{service_name=\"openhub\"}[$__range])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"})))) * 0",
+          "expr": "sum by (oshub_pool) (increase(oshub_downloads_total{service_name=\"openhub\", oshub_pool=~\"$pool\"}[$__range])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\", oshub_pool=~\"$pool\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\", oshub_pool=~\"$pool\"})))) * 0",
           "range": false,
           "instant": true,
           "format": "table"
@@ -605,7 +638,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (oshub_pool) (sum_over_time((clamp_min(last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_publications_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"})))) * 0",
+          "expr": "sum by (oshub_pool) (sum_over_time((clamp_min(last_over_time(oshub_publications_total{service_name=\"openhub\", oshub_pool=~\"$pool\"}[3h]) - (last_over_time(oshub_publications_total{service_name=\"openhub\", oshub_pool=~\"$pool\"}[3h] offset 1m) or last_over_time(oshub_publications_total{service_name=\"openhub\", oshub_pool=~\"$pool\"}[3h]) * 0), 0))[$__range:1m])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\", oshub_pool=~\"$pool\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\", oshub_pool=~\"$pool\"})))) * 0",
           "range": false,
           "instant": true,
           "format": "table"
@@ -617,7 +650,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (oshub_pool) (sum_over_time((clamp_min(last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h]) - (last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h] offset 1m) or last_over_time(oshub_mirror_versions_total{service_name=\"openhub\"}[3h]) * 0), 0))[$__range:1m])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"})))) * 0",
+          "expr": "sum by (oshub_pool) (sum_over_time((clamp_min(last_over_time(oshub_mirror_versions_total{service_name=\"openhub\", oshub_pool=~\"$pool\"}[3h]) - (last_over_time(oshub_mirror_versions_total{service_name=\"openhub\", oshub_pool=~\"$pool\"}[3h] offset 1m) or last_over_time(oshub_mirror_versions_total{service_name=\"openhub\", oshub_pool=~\"$pool\"}[3h]) * 0), 0))[$__range:1m])) or sum by (oshub_pool) ((oshub_storage_used_bytes{service_name=\"openhub\", oshub_pool=~\"$pool\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\", oshub_pool=~\"$pool\"})))) * 0",
           "range": false,
           "instant": true,
           "format": "table"
@@ -653,7 +686,7 @@
       ],
       "id": 9,
       "gridPos": {
-        "h": 9,
+        "h": 11,
         "w": 24,
         "x": 0,
         "y": 6
@@ -662,13 +695,1182 @@
     {
       "type": "row",
       "id": 10,
+      "title": "Пакеты",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Пакетов в отборе",
+      "description": "Сколько пакетов в выбранных пулах. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select count(п.\"Идентификатор\") as \"пакетов\" from \"Пакеты\" п\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\" where пл.\"Имя\" in (${pool:sqlstring})"
+        }
+      ],
+      "id": 11,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 18
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Версий в отборе",
+      "description": "Сколько версий у пакетов выбранных пулов, отозванные считаются. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select count(в.\"Идентификатор\") as \"версий\" from \"ВерсииПакетов\" в\njoin \"Пакеты\" п on п.\"Идентификатор\" = в.\"ПакетИдентификатор\"\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring})"
+        }
+      ],
+      "id": 12,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 18
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Размер версий",
+      "description": "Сколько весят все версии пакетов выбранных пулов, по размерам из реестра. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select coalesce(sum(в.\"Размер\"), 0) as \"размер\" from \"ВерсииПакетов\" в\njoin \"Пакеты\" п on п.\"Идентификатор\" = в.\"ПакетИдентификатор\"\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring})"
+        }
+      ],
+      "id": 13,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 18
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Скачиваний за период",
+      "description": "Сколько раз скачивали пакеты выбранных пулов за выбранный период. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select coalesce(sum(с.\"Количество\"), 0) as \"скачиваний\" from \"СкачиванияАгрегаты\" с\njoin \"Пакеты\" п on п.\"Идентификатор\" = с.\"ПакетИдентификатор\"\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring}) and с.\"ДатаДень\" between $__timeFrom()::date and $__timeTo()::date"
+        }
+      ],
+      "id": 14,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 18
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Скачиваний всего",
+      "description": "Сколько раз скачивали пакеты выбранных пулов за всё время счёта. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select coalesce(sum(с.\"Количество\"), 0) as \"скачиваний\" from \"СкачиванияАгрегаты\" с\njoin \"Пакеты\" п on п.\"Идентификатор\" = с.\"ПакетИдентификатор\"\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring})"
+        }
+      ],
+      "id": 15,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 18
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Без скачиваний",
+      "description": "Сколько пакетов выбранных пулов за выбранный период не скачали ни разу. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select count(п.\"Идентификатор\") as \"пакетов\" from \"Пакеты\" п\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring}) and not exists (\n  select 1 from \"СкачиванияАгрегаты\" с\n  where с.\"ПакетИдентификатор\" = п.\"Идентификатор\" and с.\"Количество\" > 0 and с.\"ДатаДень\" between $__timeFrom()::date and $__timeTo()::date)"
+        }
+      ],
+      "id": 16,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 18
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Топ за период",
+      "description": "Пятнадцать самых скачиваемых пакетов выбранных пулов за выбранный период. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "namePlacement": "left",
+        "sizing": "auto",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "maxVizHeight": 300,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "reduceOptions": {
+          "values": true,
+          "calcs": [],
+          "fields": "",
+          "limit": 15
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select п.\"Имя\" as \"пакет\", sum(с.\"Количество\") as \"скачиваний\"\nfrom \"СкачиванияАгрегаты\" с\njoin \"Пакеты\" п on п.\"Идентификатор\" = с.\"ПакетИдентификатор\"\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring}) and с.\"ДатаДень\" between $__timeFrom()::date and $__timeTo()::date\ngroup by п.\"Идентификатор\", п.\"Имя\"\norder by 2 desc, 1\nlimit 15"
+        }
+      ],
+      "id": 17,
+      "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 0,
+        "y": 22
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Топ за всё время",
+      "description": "Пятнадцать самых скачиваемых пакетов выбранных пулов за всё время счёта. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "namePlacement": "left",
+        "sizing": "auto",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "maxVizHeight": 300,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "reduceOptions": {
+          "values": true,
+          "calcs": [],
+          "fields": "",
+          "limit": 15
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select п.\"Имя\" as \"пакет\", sum(с.\"Количество\") as \"скачиваний\"\nfrom \"СкачиванияАгрегаты\" с\njoin \"Пакеты\" п on п.\"Идентификатор\" = с.\"ПакетИдентификатор\"\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring})\ngroup by п.\"Идентификатор\", п.\"Имя\"\norder by 2 desc, 1\nlimit 15"
+        }
+      ],
+      "id": 18,
+      "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 7,
+        "y": 22
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Скачивания по дням",
+      "description": "Сколько раз за каждые сутки скачивали пакеты выбранных пулов. Отдельным цветом — восемь самых скачиваемых за период, прочие сложены в «остальные». Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "right",
+          "displayMode": "table",
+          "calcs": [
+            "sum"
+          ],
+          "sortBy": "Total",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "time_series",
+          "rawSql": "with d as (\n  select с.\"ДатаДень\" as день, п.\"Имя\" as пакет, sum(с.\"Количество\") as n\n  from \"СкачиванияАгрегаты\" с\n  join \"Пакеты\" п on п.\"Идентификатор\" = с.\"ПакетИдентификатор\"\n  join \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\n  where пл.\"Имя\" in (${pool:sqlstring}) and с.\"ДатаДень\" between $__timeFrom()::date and $__timeTo()::date\n  group by 1, 2\n), первые as (\n  select пакет from d group by 1 order by sum(n) desc, 1 limit 8\n)\nselect день::timestamp as \"time\",\n       case when пакет in (select пакет from первые) then пакет else 'остальные' end as metric,\n       sum(n) as value\nfrom d\ngroup by 1, 2\norder by 1, 2"
+        }
+      ],
+      "id": 19,
+      "gridPos": {
+        "h": 11,
+        "w": 10,
+        "x": 14,
+        "y": 22
+      }
+    },
+    {
+      "type": "table",
+      "title": "Пакеты пулов",
+      "description": "Все пакеты выбранных пулов: сколько у пакета версий, какая старшая и когда вышла последняя, сколько весят все версии вместе, сколько раз пакет скачали за период и за всё время. Колонка сортируется щелчком по заголовку: так находятся самые тяжёлые и те, что никто не качает. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Размер всех версий"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Скачиваний за период"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "fieldMinMax",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Скачиваний всего"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Версий"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Устарел"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "true": {
+                        "text": "да",
+                        "index": 0
+                      },
+                      "false": {
+                        "text": "нет",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Скрыт"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "true": {
+                        "text": "да",
+                        "index": 0
+                      },
+                      "false": {
+                        "text": "нет",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Скачиваний за период",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select пл.\"Имя\" as \"Пул\", п.\"Имя\" as \"Пакет\",\n       coalesce(свод.версий, 0) as \"Версий\", свод.старшая as \"Старшая версия\",\n       свод.вышла as \"Последняя публикация\", coalesce(свод.размер, 0) as \"Размер всех версий\",\n       coalesce(з.за_период, 0) as \"Скачиваний за период\", coalesce(з.всего, 0) as \"Скачиваний всего\",\n       п.\"Устарел\" as \"Устарел\", п.\"Скрыт\" as \"Скрыт\"\nfrom \"Пакеты\" п\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nleft join lateral (\n  select count(*) as версий, sum(в.\"Размер\") as размер, max(в.\"Опубликована\") as вышла,\n         (array_agg(в.\"Версия\" order by (coalesce(в.\"semverПререлиз\", '') = '') desc, в.\"semverМажор\" desc nulls last, в.\"semverМинор\" desc nulls last, в.\"semverПатч\" desc nulls last, в.\"Опубликована\" desc))[1] as старшая\n  from \"ВерсииПакетов\" в\n  where в.\"ПакетИдентификатор\" = п.\"Идентификатор\" and not в.\"Отозвана\"\n) свод on true\nleft join (\n  select с.\"ПакетИдентификатор\" as пакет, sum(с.\"Количество\") as всего,\n         sum(с.\"Количество\") filter (where с.\"ДатаДень\" between $__timeFrom()::date and $__timeTo()::date) as за_период\n  from \"СкачиванияАгрегаты\" с\n  group by 1\n) з on з.пакет = п.\"Идентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring})\norder by 7 desc, 8 desc, 2"
+        }
+      ],
+      "id": 20,
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      }
+    },
+    {
+      "type": "table",
+      "title": "Топ версий за период",
+      "description": "Тридцать самых скачиваемых версий за выбранный период: какую именно версию пакета берут. Читается из базы хаба; скачивания хаб считает по дням с 23.09.2026, сутки — по UTC, крайние дни периода берутся целиком.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Скачиваний за период"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "fieldMinMax",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Скачиваний за период",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select пл.\"Имя\" as \"Пул\", п.\"Имя\" as \"Пакет\", coalesce(в.\"Версия\", '—') as \"Версия\",\n       в.\"Опубликована\" as \"Опубликована\", sum(с.\"Количество\") as \"Скачиваний за период\"\nfrom \"СкачиванияАгрегаты\" с\njoin \"Пакеты\" п on п.\"Идентификатор\" = с.\"ПакетИдентификатор\"\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nleft join \"ВерсииПакетов\" в on в.\"Идентификатор\" = с.\"ВерсияИдентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring}) and с.\"ДатаДень\" between $__timeFrom()::date and $__timeTo()::date\ngroup by 1, 2, 3, 4\norder by 5 desc, 2, 3\nlimit 30"
+        }
+      ],
+      "id": 21,
+      "gridPos": {
+        "h": 11,
+        "w": 14,
+        "x": 0,
+        "y": 45
+      }
+    },
+    {
+      "type": "table",
+      "title": "От кого зависят чаще всего",
+      "description": "На какие пакеты чаще всего ссылаются зависимостью. Считается по старшим версиям пакетов выбранных пулов: сколько пакетов называют этот пакет в зависимостях и сколько из них только для разработки. «Есть в хабе» — пакет с таким именем опубликован хоть в одном пуле. Читается из базы хаба.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Нужен пакетам"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "fieldMinMax",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Из них для разработки"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Есть в хабе"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "true": {
+                        "text": "да",
+                        "index": 0
+                      },
+                      "false": {
+                        "text": "нет",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Нужен пакетам",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "with старшие as (\n  select distinct on (в.\"ПакетИдентификатор\") в.\"Идентификатор\" as версия, в.\"ПакетИдентификатор\" as пакет\n  from \"ВерсииПакетов\" в\n  join \"Пакеты\" п on п.\"Идентификатор\" = в.\"ПакетИдентификатор\"\n  join \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\n  where пл.\"Имя\" in (${pool:sqlstring}) and not в.\"Отозвана\"\n  order by в.\"ПакетИдентификатор\", (coalesce(в.\"semverПререлиз\", '') = '') desc, в.\"semverМажор\" desc nulls last, в.\"semverМинор\" desc nulls last, в.\"semverПатч\" desc nulls last, в.\"Опубликована\" desc\n)\nselect min(з.\"ИмяПакета\") as \"Пакет\",\n       count(distinct с.пакет) as \"Нужен пакетам\",\n       count(distinct с.пакет) filter (where з.\"ДляРазработки\") as \"Из них для разработки\",\n       exists (select 1 from \"Пакеты\" х where х.\"ИмяНижнийРегистр\" = з.\"ИмяПакетаНижнийРегистр\") as \"Есть в хабе\"\nfrom \"ЗависимостиВерсий\" з\njoin старшие с on с.версия = з.\"ВерсияИдентификатор\"\ngroup by з.\"ИмяПакетаНижнийРегистр\"\norder by 2 desc, 1\nlimit 30"
+        }
+      ],
+      "id": 22,
+      "gridPos": {
+        "h": 11,
+        "w": 10,
+        "x": 14,
+        "y": 45
+      }
+    },
+    {
+      "type": "table",
+      "title": "Свежие публикации",
+      "description": "Тридцать версий с самой поздней датой публикации в выбранных пулах, от выбранного периода не зависит. У версии, пришедшей с другого хаба, дата публикации своя, исходная. «Доверенная публикация» — версия опубликована конвейером CI по доверию, без токена. Читается из базы хаба.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Размер"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Скачиваний всего"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "locale"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Доверенная публикация"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 190
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "true": {
+                        "text": "да",
+                        "index": 0
+                      },
+                      "false": {
+                        "text": "нет",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select в.\"Опубликована\" as \"Опубликована\", пл.\"Имя\" as \"Пул\", п.\"Имя\" as \"Пакет\", в.\"Версия\" as \"Версия\",\n       в.\"Размер\" as \"Размер\", coalesce(д.доверенная, false) as \"Доверенная публикация\",\n       coalesce(с.всего, 0) as \"Скачиваний всего\"\nfrom \"ВерсииПакетов\" в\njoin \"Пакеты\" п on п.\"Идентификатор\" = в.\"ПакетИдентификатор\"\njoin \"Пулы\" пл on пл.\"Идентификатор\" = п.\"ПулИдентификатор\"\nleft join (\n  select \"ВерсияИдентификатор\" as версия, bool_or(\"ДовереннаяПубликация\") as доверенная\n  from \"ПроисхождениеВерсий\" group by 1\n) д on д.версия = в.\"Идентификатор\"\nleft join (\n  select \"ВерсияИдентификатор\" as версия, sum(\"Количество\") as всего\n  from \"СкачиванияАгрегаты\" group by 1\n) с on с.версия = в.\"Идентификатор\"\nwhere пл.\"Имя\" in (${pool:sqlstring}) and not в.\"Отозвана\"\norder by в.\"Опубликована\" desc nulls last, 3, 4\nlimit 30"
+        }
+      ],
+      "id": 23,
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 56
+      }
+    },
+    {
+      "type": "row",
+      "id": 24,
       "title": "Рост за период",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 67
       },
       "panels": []
     },
@@ -742,12 +1944,12 @@
           "legendFormat": "версий"
         }
       ],
-      "id": 11,
+      "id": 25,
       "gridPos": {
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 16
+        "y": 68
       }
     },
     {
@@ -820,12 +2022,12 @@
           "legendFormat": "учётных записей"
         }
       ],
-      "id": 12,
+      "id": 26,
       "gridPos": {
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 16
+        "y": 68
       }
     },
     {
@@ -885,12 +2087,12 @@
           "legendFormat": "занято"
         }
       ],
-      "id": 13,
+      "id": 27,
       "gridPos": {
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 16
+        "y": 68
       }
     },
     {
@@ -951,24 +2153,24 @@
           "legendFormat": "скачиваний"
         }
       ],
-      "id": 14,
+      "id": 28,
       "gridPos": {
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 16
+        "y": 68
       }
     },
     {
       "type": "row",
-      "id": 15,
+      "id": 29,
       "title": "События за период",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 24
+        "y": 76
       },
       "panels": []
     },
@@ -1029,12 +2231,12 @@
           "instant": true
         }
       ],
-      "id": 16,
+      "id": 30,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 25
+        "y": 77
       }
     },
     {
@@ -1094,12 +2296,12 @@
           "instant": true
         }
       ],
-      "id": 17,
+      "id": 31,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 25
+        "y": 77
       }
     },
     {
@@ -1159,12 +2361,12 @@
           "instant": true
         }
       ],
-      "id": 18,
+      "id": 32,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 25
+        "y": 77
       }
     },
     {
@@ -1224,12 +2426,12 @@
           "instant": true
         }
       ],
-      "id": 19,
+      "id": 33,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 25
+        "y": 77
       }
     },
     {
@@ -1289,12 +2491,12 @@
           "instant": true
         }
       ],
-      "id": 20,
+      "id": 34,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 25
+        "y": 77
       }
     },
     {
@@ -1353,12 +2555,12 @@
           "queryType": "instant"
         }
       ],
-      "id": 21,
+      "id": 35,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 25
+        "y": 77
       }
     },
     {
@@ -1456,12 +2658,12 @@
         }
       ],
       "interval": "1d",
-      "id": 22,
+      "id": 36,
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 81
       }
     }
   ]

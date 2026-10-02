@@ -1,0 +1,25 @@
+# Источник данных Grafana: база хаба, только чтение и только каталог.
+# Роль и её права — monitoring/grafana-db-role.sql, пароль — GRAFANA_DB_PASSWORD из .env.
+apiVersion: 1
+
+datasources:
+  - name: OpenHub — база
+    uid: openhub-db
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: openhub_db:5432
+    user: grafana_ro
+    database: openhub
+    editable: false
+    jsonData:
+      database: openhub
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+      # у роли потолок пять соединений
+      maxOpenConns: 3
+      maxIdleConns: 2
+      maxIdleConnsAuto: false
+      connMaxLifetime: 14400
+    secureJsonData:
+      password: $GRAFANA_DB_PASSWORD
