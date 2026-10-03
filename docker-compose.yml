@@ -61,6 +61,8 @@ services:
       # в свопе, на него приходится 81–93 % тяжёлых страничных отказов сервера.
       # jenkins.sh склеивает JAVA_OPTS с JENKINS_JAVA_OPTS из образа, они друг друга не затирают.
       - JAVA_OPTS=-Xmx640m
+      - HTTPS_PROXY=http://host.docker.internal:8888
+      - HTTP_PROXY=http://host.docker.internal:8888
     ports:
       - "8080"
       - "50000:50000"
@@ -68,6 +70,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - jenkins_home:/var/jenkins_home
       - web_content:/var/www
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
 
   opm_hub_db:
     image: postgres:12
@@ -125,7 +129,7 @@ services:
   # подчёркивание внутри слова удваивается (oshub.instance.trusted_proxies →
   # OSHUB_INSTANCE_TRUSTED__PROXIES). Имя с одинарным подчёркиванием хаб молча не прочитает.
   openhub:
-    image: segateekb/openhub:0.11.0
+    image: segateekb/openhub:0.14.4
     restart: unless-stopped
     environment:
       - TZ=UTC
@@ -145,6 +149,8 @@ services:
       - OSHUB_STORAGE_S3_BUCKET=openhub
       - OSHUB_STORAGE_S3_REGION=us-east-1
       - OSHUB_STORAGE_S3_FORCE__PATH__STYLE=true
+      # Один срок ожидания ответа на каждый запрос к S3; тем же сроком хаб ждёт Telegram.
+      - OSHUB_STORAGE_S3_TIMEOUT_SEC=30
       - OSHUB_STORAGE_S3_ACCESS__KEY=${OPENHUB_S3_ACCESS_KEY}
       - OSHUB_STORAGE_S3_SECRET__KEY=${OPENHUB_S3_SECRET_KEY}
       - Kestrel__Limits__MaxRequestBodySize=196608000
