@@ -129,7 +129,7 @@ services:
   # подчёркивание внутри слова удваивается (oshub.instance.trusted_proxies →
   # OSHUB_INSTANCE_TRUSTED__PROXIES). Имя с одинарным подчёркиванием хаб молча не прочитает.
   openhub:
-    image: segateekb/openhub:0.14.4
+    image: segateekb/openhub:0.20.5
     restart: unless-stopped
     environment:
       - TZ=UTC
@@ -160,6 +160,9 @@ services:
       - OSHUB_GEO_UPDATE_ENABLED=true
       # Описание API: страница /swagger-ui.html, схема /v3/api-docs и /v3/api-docs.yaml
       - OSHUB_OPENAPI_ENABLED=true
+      # README пакета без README в .ospx хаб ищет в репозитории GitHub (тег версии, затем ветка
+      # по умолчанию) фоном; выключается на экране «Хаб» ключом oshub.readme.repository.enabled.
+      - OSHUB_README_REPOSITORY_RAW_URL=https://raw.githubusercontent.com
       - OTEL_ENABLED=true
       - OTEL_SERVICE_NAME=openhub
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
