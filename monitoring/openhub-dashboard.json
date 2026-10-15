@@ -492,7 +492,7 @@
     {
       "type": "stat",
       "title": "Загрузка ЦП",
-      "description": "Доля занятого процессорного времени всех ядер сервера сейчас. Разбивка по видам работы — в ряду «Ресурсы сервера».",
+      "description": "Доля занятого процессорного времени всех ядер сервера сейчас. Кто именно грузит — в ряду «Кто грузит сервер», разбивка по видам работы — «Сервер целиком».",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2304,14 +2304,1867 @@
     },
     {
       "type": "row",
-      "id": 30,
-      "title": "Ресурсы сервера",
+      "title": "Кто грузит сервер",
       "collapsed": false,
+      "panels": [],
+      "id": 49,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 78
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: память",
+      "description": "Оперативная память контейнера хаба сейчас, без кэша файлов и без свопа (учёт свопа по контейнерам на сервере выключен).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(container_memory_usage_total_bytes{container_name=\"os_openhub_1\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        }
+      ],
+      "id": 50,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 79
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: доля памяти сервера",
+      "description": "Память хаба от всей оперативной памяти сервера.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(container_memory_usage_total_bytes{container_name=\"os_openhub_1\"}) / sum(max by (state) (system_memory_usage_bytes))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        }
+      ],
+      "id": 51,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 79
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: доля ЦП сервера",
+      "description": "Процессорное время хаба от всех ядер сервера за последние минуты. Сравнить с плашкой «Загрузка ЦП» выше: остальное — соседи и система.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.8
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate({__name__=~\"container_cpu_usage(_total)?_nanoseconds_total\", container_name=\"os_openhub_1\"}[$__rate_interval])) / 1e9 / scalar(count(count by (cpu) (system_cpu_time_seconds_total)))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        }
+      ],
+      "id": 52,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 79
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: база на диске",
+      "description": "Размер базы PostgreSQL хаба (pg_database_size), читается ролью grafana_ro.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select pg_database_size(current_database()) as \"база\""
+        }
+      ],
+      "id": 53,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 79
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: файлы в S3",
+      "description": "Сколько места занимают файлы пакетов в хранилище S3 (MinIO) по счёту самого хаба.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "S3"
+        }
+      ],
+      "id": 54,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 79
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "Место на диске /",
+      "description": "Сколько занято на корневой файловой системе сервера, как в df: занято / (занято + доступно). Это весь сервер: тома Docker, Jenkins, образы. Доля хаба — две плашки слева (база и S3); кэш и гео в томе хаба не считаются.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.8
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=\"used\"}) / sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=~\"used|free\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "занято"
+        }
+      ],
+      "id": 39,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 79
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Процессор: кто сколько",
+      "description": "Доля всех ядер сервера по контейнерам, стопкой. Пунктир — весь сервер: зазор между стопкой и пунктиром занимают процессы вне Docker (dockerd, агенты, ssh). Легенда отсортирована: верхняя строка — главный потребитель сейчас.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 45,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_openhub_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "хаб"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_openhub_db_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "база хаба"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_lgtm_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "мониторинг (lgtm)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_hostmetrics_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сборщик метрик"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_nginx_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "nginx"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_jenkins_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Jenkins"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_minio_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "MinIO (S3)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os-site-1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сайт oscript.io"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_opm_hub_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "старый хаб (opm)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_opm_hub_db_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "база старого хаба"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_tg_bot_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "телеграм-бот"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_certbot_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "certbot"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_s3-sync_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "s3-sync"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "buildx_buildkit_default"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "buildkit"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "buildx_buildkit_onescript-buildkit-v0.30.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "buildkit (onescript)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "весь сервер"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none",
+                  "group": "A"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    6
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#b0b0b0"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "right",
+          "displayMode": "table",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (container_name) (rate({__name__=~\"container_cpu_usage(_total)?_nanoseconds_total\"}[$__rate_interval])) / 1e9 / scalar(count(count by (cpu) (system_cpu_time_seconds_total)))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{container_name}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "1 - sum(rate(system_cpu_time_seconds_total{state=\"idle\"}[$__rate_interval])) / sum(rate(system_cpu_time_seconds_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "весь сервер"
+        }
+      ],
+      "id": 55,
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 83
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Память: кто сколько",
+      "description": "Оперативная память по контейнерам, стопкой (без кэша файлов). Пунктир «занято на сервере» — вся память программ, зазор до стопки — процессы вне Docker; точки — весь объём памяти. Своп сюда не входит: у ядра выключен его учёт по контейнерам.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 45,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_openhub_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "хаб"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_openhub_db_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "база хаба"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_lgtm_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "мониторинг (lgtm)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_hostmetrics_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сборщик метрик"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_nginx_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "nginx"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_jenkins_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Jenkins"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_minio_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "MinIO (S3)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os-site-1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сайт oscript.io"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_opm_hub_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "старый хаб (opm)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_opm_hub_db_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "база старого хаба"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_tg_bot_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "телеграм-бот"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_certbot_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "certbot"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_s3-sync_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "s3-sync"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "buildx_buildkit_default"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "buildkit"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "buildx_buildkit_onescript-buildkit-v0.30.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "buildkit (onescript)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "занято на сервере"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none",
+                  "group": "A"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    6
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#b0b0b0"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "всего памяти"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none",
+                  "group": "A"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dot",
+                  "dash": [
+                    2,
+                    4
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#b0b0b0"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "right",
+          "displayMode": "table",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (container_name) (container_memory_usage_total_bytes)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{container_name}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(system_memory_usage_bytes{state=\"used\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "занято на сервере"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(max by (state) (system_memory_usage_bytes))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "всего памяти"
+        }
+      ],
+      "id": 56,
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 93
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Сеть: кто сколько",
+      "description": "Приём плюс передача по контейнерам. Запрос к хабу считается дважды: у nginx и у хаба. Пунктир — внешний интерфейс сервера.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 45,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_openhub_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "хаб"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_openhub_db_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "база хаба"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_lgtm_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "мониторинг (lgtm)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_hostmetrics_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сборщик метрик"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_nginx_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "nginx"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_jenkins_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Jenkins"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_minio_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "MinIO (S3)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os-site-1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сайт oscript.io"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_opm_hub_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "старый хаб (opm)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_opm_hub_db_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "база старого хаба"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_tg_bot_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "телеграм-бот"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_certbot_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "certbot"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_s3-sync_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "s3-sync"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "buildx_buildkit_default"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "buildkit"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "buildx_buildkit_onescript-buildkit-v0.30.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "buildkit (onescript)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "внешний интерфейс"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none",
+                  "group": "A"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    6
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#b0b0b0"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "right",
+          "displayMode": "table",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (container_name) (rate(container_network_io_usage_rx_bytes_total[$__rate_interval]) + rate(container_network_io_usage_tx_bytes_total[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{container_name}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_network_io_bytes_total{device=\"eth0\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "внешний интерфейс"
+        }
+      ],
+      "id": 57,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 103
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Диск: кто читает и пишет",
+      "description": "Чтение плюс запись на блочные устройства по контейнерам. Пунктир — все диски сервера.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 45,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_openhub_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "хаб"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_openhub_db_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "база хаба"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_lgtm_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "мониторинг (lgtm)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_hostmetrics_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сборщик метрик"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_nginx_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "nginx"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_jenkins_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Jenkins"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_minio_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "MinIO (S3)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os-site-1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "сайт oscript.io"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_opm_hub_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "старый хаб (opm)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_opm_hub_db_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "база старого хаба"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_tg_bot_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "телеграм-бот"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_certbot_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "certbot"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "os_s3-sync_1"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "s3-sync"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "buildx_buildkit_default"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "buildkit"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "buildx_buildkit_onescript-buildkit-v0.30.00"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "buildkit (onescript)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "все диски"
+            },
+            "properties": [
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none",
+                  "group": "A"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    6
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#b0b0b0"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "right",
+          "displayMode": "table",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (container_name) (rate(container_blockio_io_service_bytes_recursive_total{operation=~\"(?i)(read|write)\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{container_name}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_disk_io_bytes_total{device=~\"(s|v|xv)d[a-z]+|nvme[0-9]+n[0-9]+\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "все диски"
+        }
+      ],
+      "id": 58,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 103
+      }
+    },
+    {
+      "type": "row",
+      "id": 30,
+      "title": "Сервер целиком",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 112
       },
       "panels": []
     },
@@ -2502,7 +4355,7 @@
         "h": 9,
         "w": 8,
         "x": 0,
-        "y": 79
+        "y": 113
       }
     },
     {
@@ -2634,7 +4487,7 @@
         "h": 9,
         "w": 8,
         "x": 8,
-        "y": 79
+        "y": 113
       }
     },
     {
@@ -2796,7 +4649,7 @@
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 79
+        "y": 113
       }
     },
     {
@@ -2903,7 +4756,7 @@
         "h": 9,
         "w": 8,
         "x": 0,
-        "y": 88
+        "y": 122
       }
     },
     {
@@ -2993,7 +4846,7 @@
         "h": 9,
         "w": 8,
         "x": 8,
-        "y": 88
+        "y": 122
       }
     },
     {
@@ -3083,7 +4936,7 @@
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 88
+        "y": 122
       }
     },
     {
@@ -3147,9 +5000,9 @@
       "id": 37,
       "gridPos": {
         "h": 9,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 97
+        "y": 131
       }
     },
     {
@@ -3237,79 +5090,9 @@
       "id": 38,
       "gridPos": {
         "h": 9,
-        "w": 8,
-        "x": 8,
-        "y": 97
-      }
-    },
-    {
-      "type": "gauge",
-      "title": "Место на диске /",
-      "description": "Сколько занято на корневой файловой системе сервера, как в df: занято / (занято + доступно). Зарезервированное для root не считается доступным.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1,
-          "decimals": 0,
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 0.8
-              },
-              {
-                "color": "red",
-                "value": 0.9
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=\"used\"}) / sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=~\"used|free\"})",
-          "range": true,
-          "instant": false,
-          "legendFormat": "занято"
-        }
-      ],
-      "id": 39,
-      "gridPos": {
-        "h": 9,
-        "w": 8,
-        "x": 16,
-        "y": 97
+        "w": 12,
+        "x": 12,
+        "y": 131
       }
     },
     {
@@ -3321,7 +5104,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 106
+        "y": 140
       },
       "panels": []
     },
@@ -3419,7 +5202,7 @@
         "h": 9,
         "w": 6,
         "x": 0,
-        "y": 107
+        "y": 141
       }
     },
     {
@@ -3508,7 +5291,7 @@
         "h": 9,
         "w": 6,
         "x": 6,
-        "y": 107
+        "y": 141
       }
     },
     {
@@ -3597,7 +5380,7 @@
         "h": 9,
         "w": 6,
         "x": 12,
-        "y": 107
+        "y": 141
       }
     },
     {
@@ -3712,7 +5495,7 @@
         "h": 9,
         "w": 6,
         "x": 18,
-        "y": 107
+        "y": 141
       }
     },
     {
@@ -3724,7 +5507,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 116
+        "y": 150
       },
       "panels": []
     },
@@ -3848,7 +5631,7 @@
         "h": 12,
         "w": 8,
         "x": 0,
-        "y": 117
+        "y": 151
       }
     },
     {
@@ -3887,7 +5670,7 @@
         "h": 12,
         "w": 16,
         "x": 8,
-        "y": 117
+        "y": 151
       }
     },
     {
@@ -3899,7 +5682,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 129
+        "y": 163
       },
       "panels": [
         {
