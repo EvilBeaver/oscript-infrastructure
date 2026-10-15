@@ -39,6 +39,7 @@
 | `openhub` | сам хаб, образ `segateekb/openhub`; |
 | `openhub_db` | PostgreSQL хаба;|
 | `lgtm` | мониторинг хаба одним контейнером (`grafana/otel-lgtm`), Grafana — grafana.oscript.io; дашборд хаба — в `monitoring/` |
+| `hostmetrics` | коллектор OpenTelemetry: ресурсы сервера и каждого контейнера → `lgtm`; конфиг `monitoring/otelcol-host.yaml` |
 
 Файлы пакетов хаб хранит в общем MinIO
 
@@ -93,6 +94,18 @@ nginx собран из официального образа с модулем 
 со `stub_status` на внутреннем порту 8080 (`web/nginx/sites-enabled/status`, наружу не публикуется);
 receiver подключён оверлеем `monitoring/otelcol-nginx.yaml`. RPS, ошибки и латентность по трассам
 строит Tempo в `lgtm`: `traces_spanmetrics_*{service="nginx"}`.
+
+## Кто грузит сервер
+
+Сервис `hostmetrics` снимает ресурсы сервера (ЦП, память, своп, диски, сеть) и те же ресурсы
+по каждому контейнеру: receiver `docker_stats` читает сокет Docker, смонтированный только на
+чтение; пользователь контейнера идёт с группой `docker` хоста (`DOCKER_GID` в `.env`, если номер
+группы не 995). В Prometheus метрики контейнеров — `container_*` с меткой `container_name`.
+На дашборде «OpenHub — наблюдаемость» ряд «Кто грузит сервер» раскладывает ЦП, память, сеть и
+ввод-вывод по контейнерам с линией всего сервера поверх, а плашки хаба показывают его долю:
+память, ЦП, база (размер из `openhub_db` ролью `grafana_ro`) и файлы в S3 (`oshub_storage_used_bytes`).
+Свопа по контейнерам нет: учёт свопа в cgroup на сервере выключен. Место на диске по томам
+коллектор не считает.
 
 ## robots.txt и пределы частоты hub.oscript.io
 
