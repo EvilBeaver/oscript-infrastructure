@@ -1,4 +1,4 @@
-# Метрики хоста → lgtm по OTLP/gRPC. Сервис hostmetrics в docker-compose.yml.
+# Метрики хоста и контейнеров → lgtm по OTLP/gRPC. Сервис hostmetrics в docker-compose.yml.
 # Корень хоста смонтирован в /hostfs; root_path направляет туда чтение /proc и /sys,
 # иначе receiver видел бы контейнер, а не хост.
 receivers:
@@ -48,6 +48,17 @@ receivers:
             - ^/hostfs/var/lib/docker/.*
             - ^/snap/.*
 
+  # Те же ресурсы по каждому контейнеру (ЦП, память, сеть, ввод-вывод): кто именно грузит сервер.
+  # Читает сокет Docker (смонтирован только на чтение), в Prometheus имя контейнера — метка container_name.
+  # Свопа по контейнерам нет: учёт свопа в cgroup на сервере выключен.
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 30s
+    timeout: 20s
+    metrics:
+      container.pids.count:
+        enabled: true
+
 processors:
   # receiver не ставит ресурсных атрибутов, а имя хоста в контейнере — не имя сервера
   resource:
@@ -70,6 +81,6 @@ service:
       level: none
   pipelines:
     metrics:
-      receivers: [hostmetrics]
+      receivers: [hostmetrics, docker_stats]
       processors: [resource, batch]
       exporters: [otlp]

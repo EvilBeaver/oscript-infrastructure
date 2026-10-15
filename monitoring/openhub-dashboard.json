@@ -492,7 +492,7 @@
     {
       "type": "stat",
       "title": "Загрузка ЦП",
-      "description": "Доля занятого процессорного времени всех ядер сервера сейчас. Разбивка по видам работы — в ряду «Ресурсы сервера».",
+      "description": "Доля занятого процессорного времени всех ядер сервера сейчас. Сколько из этого хаб и каких видов работа — в ряду «Ресурсы: хаб и сервер».",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2304,21 +2304,431 @@
     },
     {
       "type": "row",
-      "id": 30,
-      "title": "Ресурсы сервера",
+      "title": "Ресурсы: хаб и сервер",
       "collapsed": false,
+      "panels": [],
+      "id": 49,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 78
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: память",
+      "description": "Оперативная память контейнера хаба сейчас, без кэша файлов и без свопа (учёт свопа по контейнерам на сервере выключен).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
       },
-      "panels": []
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(container_memory_usage_total_bytes{container_name=\"os_openhub_1\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        }
+      ],
+      "id": 50,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 79
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: доля памяти сервера",
+      "description": "Память хаба от всей оперативной памяти сервера.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(container_memory_usage_total_bytes{container_name=\"os_openhub_1\"}) / sum(max by (state) (system_memory_usage_bytes))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        }
+      ],
+      "id": 51,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 79
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: доля ЦП сервера",
+      "description": "Процессорное время хаба от всех ядер сервера за последние минуты. Сравнить с плашкой «Загрузка ЦП» выше: остальное — соседи и система.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.8
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate({__name__=~\"container_cpu_usage(_total)?_nanoseconds_total\", container_name=\"os_openhub_1\"}[$__rate_interval])) / 1e9 / scalar(count(count by (cpu) (system_cpu_time_seconds_total)))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        }
+      ],
+      "id": 52,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 79
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: база на диске",
+      "description": "Размер базы PostgreSQL хаба (pg_database_size), читается ролью grafana_ro.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "openhub-db"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "openhub-db"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "select pg_database_size(current_database()) as \"база\""
+        }
+      ],
+      "id": 53,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 79
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Хаб: файлы в S3",
+      "description": "Сколько места занимают файлы пакетов в хранилище S3 (MinIO) по счёту самого хаба.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max((oshub_storage_used_bytes{service_name=\"openhub\"} and on (host_name) topk(1, timestamp(oshub_storage_used_bytes{service_name=\"openhub\"}))))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "S3"
+        }
+      ],
+      "id": 54,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 79
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "Место на диске /",
+      "description": "Сколько занято на корневой файловой системе сервера, как в df: занято / (занято + доступно). Весь сервер; доля хаба — две плашки слева (база и S3), кэш и гео в томе хаба не считаются.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.8
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=\"used\"}) / sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=~\"used|free\"})",
+          "range": true,
+          "instant": false,
+          "legendFormat": "занято"
+        }
+      ],
+      "id": 39,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 79
+      }
     },
     {
       "type": "timeseries",
-      "title": "Загрузка процессора",
-      "description": "Доля процессорного времени всех ядер сервера по видам работы; стопка целиком — общая загрузка. Сверху вниз стопки: программы, ядро ОС, iowait, steal, прочее. iowait — процессор ждёт диск (при активном свопе растёт первым); steal — время, отнятое гипервизором.",
+      "title": "Процессор: виды работы",
+      "description": "Доля процессорного времени всех ядер сервера по видам работы; стопка целиком — общая загрузка. Сверху вниз стопки: программы, ядро ОС, iowait, steal, прочее. iowait — процессор ждёт диск (при активном свопе растёт первым); steal — время, отнятое гипервизором. Высокое «ожидание ввода-вывода» — тормозит диск или своп; «украдено» — гипервизор отдал ядро соседней виртуалке.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2501,8 +2911,8 @@
       "gridPos": {
         "h": 9,
         "w": 8,
-        "x": 0,
-        "y": 79
+        "x": 8,
+        "y": 92
       }
     },
     {
@@ -2633,14 +3043,123 @@
       "gridPos": {
         "h": 9,
         "w": 8,
-        "x": 8,
-        "y": 79
+        "x": 16,
+        "y": 92
       }
     },
     {
       "type": "timeseries",
-      "title": "Память",
-      "description": "Оперативная память сервера; стопка целиком — весь объём. «Занято» — память программ; «кэш» и «буферы» ядро отдаёт по первому требованию. Свободное у нуля и маленький кэш — памяти не хватает, дальше своп.",
+      "title": "Процессор: хаб и всё остальное",
+      "description": "Доля всех ядер сервера. Синее — хаб, серое — всё остальное на сервере (соседние службы и система). Верх стопки — загрузка сервера целиком; у единицы процессор исчерпан, и хаб ждёт очереди.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "max": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "хаб"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "всё остальное"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9a9a9a"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate({__name__=~\"container_cpu_usage(_total)?_nanoseconds_total\", container_name=\"os_openhub_1\"}[$__rate_interval])) / 1e9 / scalar(count(count by (cpu) (system_cpu_time_seconds_total)))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "clamp_min((1 - sum(rate(system_cpu_time_seconds_total{state=\"idle\"}[$__rate_interval])) / sum(rate(system_cpu_time_seconds_total[$__rate_interval]))) - (sum(rate({__name__=~\"container_cpu_usage(_total)?_nanoseconds_total\", container_name=\"os_openhub_1\"}[$__rate_interval])) / 1e9 / scalar(count(count by (cpu) (system_cpu_time_seconds_total)))), 0)",
+          "range": true,
+          "instant": false,
+          "legendFormat": "всё остальное"
+        }
+      ],
+      "id": 59,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 83
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Память: хаб и всё остальное",
+      "description": "Оперативная память сервера целиком, стопкой. Синее — хаб (без кэша файлов), серое — остальные программы, фиолетовое — кэш и буферы ядра (отдаются по требованию), зелёное — свободно. Свободное у нуля и тонкий кэш — памяти не хватает, дальше своп (панели справа).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2670,7 +3189,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "занято"
+              "options": "хаб"
             },
             "properties": [
               {
@@ -2685,14 +3204,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "кэш файлов"
+              "options": "всё остальное"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "purple"
+                  "fixedColor": "#9a9a9a"
                 }
               }
             ]
@@ -2700,14 +3219,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "буферы"
+              "options": "кэш и буферы"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "light-purple"
+                  "fixedColor": "purple"
                 }
               }
             ]
@@ -2749,10 +3268,10 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(system_memory_usage_bytes{state=\"used\"})",
+          "expr": "max(container_memory_usage_total_bytes{container_name=\"os_openhub_1\"})",
           "range": true,
           "instant": false,
-          "legendFormat": "занято"
+          "legendFormat": "хаб"
         },
         {
           "refId": "B",
@@ -2761,10 +3280,10 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(system_memory_usage_bytes{state=\"cached\"})",
+          "expr": "clamp_min(max(system_memory_usage_bytes{state=\"used\"}) - max(container_memory_usage_total_bytes{container_name=\"os_openhub_1\"}), 0)",
           "range": true,
           "instant": false,
-          "legendFormat": "кэш файлов"
+          "legendFormat": "всё остальное"
         },
         {
           "refId": "C",
@@ -2773,10 +3292,10 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(system_memory_usage_bytes{state=\"buffered\"})",
+          "expr": "max(system_memory_usage_bytes{state=\"cached\"}) + max(system_memory_usage_bytes{state=\"buffered\"})",
           "range": true,
           "instant": false,
-          "legendFormat": "буферы"
+          "legendFormat": "кэш и буферы"
         },
         {
           "refId": "D",
@@ -2791,18 +3310,234 @@
           "legendFormat": "свободно"
         }
       ],
-      "id": 33,
+      "id": 60,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 83
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Диск: хаб и все диски",
+      "description": "Чтение плюс запись: синее — контейнер хаба, серое — все диски сервера. Линии, не стопка.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 15,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "хаб"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "все диски"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9a9a9a"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(container_blockio_io_service_bytes_recursive_total{container_name=\"os_openhub_1\", operation=~\"(?i)(read|write)\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_disk_io_bytes_total{device=~\"(s|v|xv)d[a-z]+|nvme[0-9]+n[0-9]+\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "все диски"
+        }
+      ],
+      "id": 61,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 101
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Сеть: хаб и внешний интерфейс",
+      "description": "Приём плюс передача: синее — контейнер хаба (включая обмен с базой и S3 внутри сервера), серое — внешний интерфейс сервера. Линии, не стопка.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 15,
+            "showPoints": "never",
+            "spanNulls": false,
+            "gradientMode": "none",
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "хаб"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "внешний интерфейс"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9a9a9a"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom",
+          "displayMode": "list",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(container_network_io_usage_rx_bytes_total{container_name=\"os_openhub_1\"}[$__rate_interval]) + rate(container_network_io_usage_tx_bytes_total{container_name=\"os_openhub_1\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "хаб"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(system_network_io_bytes_total{device=\"eth0\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "внешний интерфейс"
+        }
+      ],
+      "id": 62,
       "gridPos": {
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 79
+        "y": 101
       }
     },
     {
       "type": "timeseries",
       "title": "Своп: занято",
-      "description": "Сколько свопа занято и его полный размер. Сам по себе занятый своп не страшен — страшно, когда идёт активный обмен (соседняя панель).",
+      "description": "Занятый своп. Он растёт, когда оперативной памяти не хватает; по контейнерам ядро своп не учитывает, поэтому доля хаба здесь не видна. Лагает ли хаб из-за свопа — говорит панель обмена ниже.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2902,8 +3637,8 @@
       "gridPos": {
         "h": 9,
         "w": 8,
-        "x": 0,
-        "y": 88
+        "x": 16,
+        "y": 83
       }
     },
     {
@@ -2992,98 +3727,8 @@
       "gridPos": {
         "h": 9,
         "w": 8,
-        "x": 8,
-        "y": 88
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Диск: чтение и запись",
-      "description": "Байт в секунду, прочитанных с диска и записанных на диск сервера (весь диск, без разделов). Обмен со свопом входит сюда же.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "min": 0,
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false,
-            "gradientMode": "none",
-            "axisSoftMin": 0,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "read"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "чтение"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "write"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "запись"
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "legend": {
-          "showLegend": true,
-          "placement": "bottom",
-          "displayMode": "list",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (direction) (rate(system_disk_io_bytes_total{device=~\"(s|v|xv)d[a-z]+|nvme[0-9]+n[0-9]+\"}[$__rate_interval]))",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{direction}}"
-        }
-      ],
-      "id": 36,
-      "gridPos": {
-        "h": 9,
-        "w": 8,
-        "x": 16,
-        "y": 88
+        "x": 0,
+        "y": 92
       }
     },
     {
@@ -3148,168 +3793,8 @@
       "gridPos": {
         "h": 9,
         "w": 8,
-        "x": 0,
-        "y": 97
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Сеть: внешний интерфейс",
-      "description": "Байт в секунду, принятых и отправленных через eth0 — внешний интерфейс сервера (все сайты).",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "min": 0,
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false,
-            "gradientMode": "none",
-            "axisSoftMin": 0,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "receive"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "приём"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "transmit"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "передача"
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "legend": {
-          "showLegend": true,
-          "placement": "bottom",
-          "displayMode": "list",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (direction) (rate(system_network_io_bytes_total{device=\"eth0\"}[$__rate_interval]))",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{direction}}"
-        }
-      ],
-      "id": 38,
-      "gridPos": {
-        "h": 9,
-        "w": 8,
         "x": 8,
-        "y": 97
-      }
-    },
-    {
-      "type": "gauge",
-      "title": "Место на диске /",
-      "description": "Сколько занято на корневой файловой системе сервера, как в df: занято / (занято + доступно). Зарезервированное для root не считается доступным.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1,
-          "decimals": 0,
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 0.8
-              },
-              {
-                "color": "red",
-                "value": 0.9
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=\"used\"}) / sum(system_filesystem_usage_bytes{mountpoint=\"/\", state=~\"used|free\"})",
-          "range": true,
-          "instant": false,
-          "legendFormat": "занято"
-        }
-      ],
-      "id": 39,
-      "gridPos": {
-        "h": 9,
-        "w": 8,
-        "x": 16,
-        "y": 97
+        "y": 101
       }
     },
     {
@@ -3321,7 +3806,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 106
+        "y": 110
       },
       "panels": []
     },
@@ -3419,7 +3904,7 @@
         "h": 9,
         "w": 6,
         "x": 0,
-        "y": 107
+        "y": 111
       }
     },
     {
@@ -3508,7 +3993,7 @@
         "h": 9,
         "w": 6,
         "x": 6,
-        "y": 107
+        "y": 111
       }
     },
     {
@@ -3597,7 +4082,7 @@
         "h": 9,
         "w": 6,
         "x": 12,
-        "y": 107
+        "y": 111
       }
     },
     {
@@ -3712,7 +4197,7 @@
         "h": 9,
         "w": 6,
         "x": 18,
-        "y": 107
+        "y": 111
       }
     },
     {
@@ -3724,7 +4209,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 116
+        "y": 120
       },
       "panels": []
     },
@@ -3848,7 +4333,7 @@
         "h": 12,
         "w": 8,
         "x": 0,
-        "y": 117
+        "y": 121
       }
     },
     {
@@ -3887,7 +4372,7 @@
         "h": 12,
         "w": 16,
         "x": 8,
-        "y": 117
+        "y": 121
       }
     },
     {
@@ -3899,7 +4384,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 129
+        "y": 133
       },
       "panels": [
         {
