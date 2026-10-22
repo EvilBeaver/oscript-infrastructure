@@ -129,7 +129,7 @@ services:
   # подчёркивание внутри слова удваивается (oshub.instance.trusted_proxies →
   # OSHUB_INSTANCE_TRUSTED__PROXIES). Имя с одинарным подчёркиванием хаб молча не прочитает.
   openhub:
-    image: segateekb/openhub:0.22.0
+    image: segateekb/openhub:0.23.0
     restart: unless-stopped
     environment:
       - TZ=UTC
@@ -162,6 +162,10 @@ services:
       - OSHUB_OPENAPI_ENABLED=true
       # Проверка новой версии хаба ходит на hub.oscript.io — это он сам, проверять нечего
       - OSHUB_UPDATES_CHECK=false
+      # После готовности хаба фоновое задание отпускает таблицы рефлексии контейнера (память);
+      # выключатель на случай странностей — false, ожидание готовности — секунды.
+      - OSHUB_START_RELEASE__BEAN__METADATA=true
+      - OSHUB_START_READY__WAIT__SEC=600
       # README пакета без README в .ospx хаб ищет в репозитории GitHub (тег версии, затем ветка
       # по умолчанию) фоном; выключается на экране «Хаб» ключом oshub.readme.repository.enabled.
       - OSHUB_README_REPOSITORY_RAW_URL=https://raw.githubusercontent.com
