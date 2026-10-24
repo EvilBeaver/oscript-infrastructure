@@ -1,0 +1,37 @@
+name: os
+
+services:
+  minio:
+    extends:
+      file: compose/apps/minio.yml
+      service: minio
+    ports:
+      - "127.0.0.1:9001:9001"
+      - "10.9.0.2:9000:9000"
+
+  lgtm:
+    extends:
+      file: compose/apps/lgtm.yml
+      service: lgtm
+    extra_hosts:
+      - "openhub_db:10.9.0.1"
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "10.9.0.2:3000:3000"
+      - "10.9.0.2:4317:4317"
+      - "10.9.0.2:4318:4318"
+
+  hostmetrics:
+    extends:
+      file: compose/apps/hostmetrics.yml
+      service: hostmetrics
+    environment:
+      - OTLP_ENDPOINT=10.9.0.2:4317
+      - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript.io}
+
+networks:
+  openhub:
+
+volumes:
+  minio_data:
+  lgtm_data:

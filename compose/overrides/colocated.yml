@@ -1,0 +1,27 @@
+include:
+  - compose/apps/minio.yml
+  - compose/apps/lgtm.yml
+
+services:
+  nginx:
+    depends_on:
+      - site
+      - certbot
+      - jenkins
+      - minio
+      - lgtm
+
+  openhub:
+    depends_on:
+      - openhub_db
+      - minio
+      - lgtm
+
+  hostmetrics:
+    environment:
+      - OTLP_ENDPOINT=127.0.0.1:4317
+      - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript.io}
+
+volumes:
+  minio_data:
+  lgtm_data:

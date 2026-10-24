@@ -1,0 +1,13 @@
+services:
+  openhub_db:
+    container_name: os_openhub_db_1
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=openhub
+      - POSTGRES_DB=openhub
+      - POSTGRES_PASSWORD=${OPENHUB_DB_PASSWORD}
+    volumes:
+      - openhub_postgres_data:/var/lib/postgresql/data
+    networks:
+      - openhub

@@ -35,11 +35,8 @@ server {
 
     proxy_redirect off;
 
-    resolver 127.0.0.11 valid=30s;
-
     location / {
-        set $target_url http://lgtm:3000;
-        proxy_pass $target_url;
+        proxy_pass http://lgtm:3000;
 
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

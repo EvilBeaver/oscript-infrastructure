@@ -1,0 +1,8 @@
+services:
+  tg_bot:
+    container_name: os_tg_bot_1
+    image: evilbeaver/os-tg-bot:latest
+    ports:
+      - "5000"
+    environment:
+      - TELEGRAM_TOKEN

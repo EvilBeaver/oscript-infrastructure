@@ -171,7 +171,8 @@ echo "### nginx -t"
 # docker compose run собирает образ, только если его нет, — без явной сборки тест гоняет старый конфиг
 $DC build nginx
 $DC run --rm certs >/dev/null
-nginx_t="$($DC run --rm --no-deps nginx nginx -t 2>&1)" || { echo "$nginx_t" >&2; fail "nginx -t"; }
+$DC up -d backend collector >/dev/null
+nginx_t="$($DC run --rm nginx nginx -t 2>&1)" || { echo "$nginx_t" >&2; fail "nginx -t"; }
 echo "$nginx_t"
 if echo "$nginx_t" | grep -q deprecated; then
   fail "в конфиге устаревшие директивы"

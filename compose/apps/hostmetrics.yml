@@ -1,0 +1,19 @@
+services:
+  # Метрики хоста (CPU, загрузка, память, диски, ФС, сеть) и каждого контейнера (CPU, память, сеть,
+  # ввод-вывод) → lgtm. Конфиг — monitoring/otelcol-host.yaml
+  hostmetrics:
+    container_name: os_hostmetrics_1
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # сеть хоста: иначе скрейпер network видит интерфейсы контейнера, а не сервера
+    network_mode: host
+    # Сокет Docker принадлежит root:docker, поэтому пользователь образа идёт с группой docker хоста.
+    # Если на сервере у группы docker другой номер (getent group docker) — DOCKER_GID в .env
+    user: "10001:${DOCKER_GID:-995}"
+    environment:
+      - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript.io}
+    volumes:
+      - /:/hostfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../../monitoring/otelcol-host.yaml:/etc/otelcol/config.yaml:ro

@@ -6,7 +6,7 @@
 # v0.33.1: otlp, prometheus/collector) плюс nginx. При обновлении lgtm — сверить.
 receivers:
   nginx:
-    endpoint: http://nginx:8080/nginx_status
+    endpoint: ${env:NGINX_STATUS_ENDPOINT}
     collection_interval: 10s
 
 service:

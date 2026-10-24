@@ -1,0 +1,11 @@
+services:
+  site:
+    container_name: os_site_1
+    image: oscript/backend
+    ports:
+      - "3030"
+    environment:
+      # Секрет подписи вебхука публикации из GitHub Actions (SITE_WEBHOOK_SECRET в OneScript)
+      - publish_secret
+    volumes:
+      - web_content:/var/www/

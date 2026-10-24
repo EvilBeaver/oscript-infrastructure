@@ -1,0 +1,69 @@
+services:
+  # OpenHub — hub.oscript.io. Секреты — в .env, см. openhub.env.example
+  # Имена переменных — по правилу хаба (с 0.8.0): точка ключа настройки становится подчёркиванием,
+  # подчёркивание внутри слова удваивается (oshub.instance.trusted_proxies →
+  # OSHUB_INSTANCE_TRUSTED__PROXIES). Имя с одинарным подчёркиванием хаб молча не прочитает.
+  openhub:
+    container_name: os_openhub_1
+    image: segateekb/openhub:0.23.0
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+      - OSHUB_INSTANCE_URL=https://hub.oscript.io
+      - OSHUB_INSTANCE_TRUSTED__PROXIES=10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+      - data_ИсточникиДанных_ТипКоннектора=КоннекторPostgreSQL
+      - data_ИсточникиДанных_СтрокаСоединения=Host=openhub_db;Username=openhub;Password=${OPENHUB_DB_PASSWORD};Database=openhub;KeepAlive=10
+      - OSHUB_DB_POOL_SIZE=50
+      - OSHUB_LOG_LEVEL=INFO
+      # OSHUB_LOG_LEVELS с телеметрией не задавать: OTel-аппендер logos не переспрашивает уровень
+      # своего лога, и точечный DEBUG одного логгера уезжает в коллектор от ВСЕХ логгеров
+      # (ДЕПЛОЙ, ЗНАНИЕ: ЧЕРНОВИК-AUTUMN-LOGOS-уровень-способа-вывода-глушит-точечные). Прогон
+      # 2026-09-27: при DEBUG на двух редких логгерах в Loki уезжало 30 строк/с отладки всего хаба,
+      # экспорт журнала в потоке запроса не успевал, установки и страницы стояли по 30–50 с.
+      - OSHUB_STORAGE_BACKEND=s3
+      - OSHUB_STORAGE_S3_ENDPOINT=http://minio:9000
+      - OSHUB_STORAGE_S3_BUCKET=openhub
+      - OSHUB_STORAGE_S3_REGION=us-east-1
+      - OSHUB_STORAGE_S3_FORCE__PATH__STYLE=true
+      # Один срок ожидания ответа на каждый запрос к S3; тем же сроком хаб ждёт Telegram.
+      - OSHUB_STORAGE_S3_TIMEOUT_SEC=30
+      - OSHUB_STORAGE_S3_ACCESS__KEY=${OPENHUB_S3_ACCESS_KEY}
+      - OSHUB_STORAGE_S3_SECRET__KEY=${OPENHUB_S3_SECRET_KEY}
+      - Kestrel__Limits__MaxRequestBodySize=196608000
+      - OSHUB_PUBLISH_MAX__UPLOAD__BYTES=157286400
+      - OSHUB_PUBLISH_MAX__UNPACKED__BYTES=268435456
+      - OSHUB_PUBLISH_MAX__FILES=20000
+      - OSHUB_GEO_UPDATE_ENABLED=true
+      # Описание API: страница /swagger-ui.html, схема /v3/api-docs и /v3/api-docs.yaml
+      - OSHUB_OPENAPI_ENABLED=true
+      # Проверка новой версии хаба ходит на hub.oscript.io — это он сам, проверять нечего
+      - OSHUB_UPDATES_CHECK=false
+      # После готовности хаба фоновое задание отпускает таблицы рефлексии контейнера (память);
+      # выключатель на случай странностей — false, ожидание готовности — секунды.
+      - OSHUB_START_RELEASE__BEAN__METADATA=true
+      - OSHUB_START_READY__WAIT__SEC=600
+      # README пакета без README в .ospx хаб ищет в репозитории GitHub (тег версии, затем ветка
+      # по умолчанию) фоном; выключается на экране «Хаб» ключом oshub.readme.repository.enabled.
+      - OSHUB_README_REPOSITORY_RAW_URL=https://raw.githubusercontent.com
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=openhub
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      # Экспорт OTLP по HTTP в JSON — так настроен сервер; protobuf не возвращать без проверки на стенде
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+      # Выборка трасс решается на входе, в nginx (все запросы, web/nginx/conf.d/otel.conf):
+      # хаб на parentbased наследует её, и трасса целая — nginx → хаб → база.
+      # Доля здесь — только для собственных корней хаба (фоновые задания, метрики).
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=1.0
+      # Экспорт партиями чаще умолчаний библиотеки (спаны 5 с, метрики 60 с), логи — 1 с по умолчанию
+      - OTEL_BSP_SCHEDULE_DELAY=1000
+      - OTEL_METRIC_EXPORT_INTERVAL=10000
+      # Спаны вызовов хранилищ включены: трасса страницы и скачивания видна до слоя хранилищ
+      - OTEL_ENTITY_REPOSITORY_ENABLED=true
+    volumes:
+      - openhub_data:/var/lib/openhub
+    depends_on:
+      - openhub_db
+    networks:
+      - default
+      - openhub
