@@ -14,8 +14,7 @@ Docker Compose · nginx (образ с `ngx_otel_module`) · Let's Encrypt/certb
 | --- | --- | --- |
 | `nginx` | reverse proxy, TLS, OTel, rate limit | все публичные домены |
 | `site` | основной сайт | `oscript.io`, `www.oscript.io` |
-| `openhub` | хаб пакетов (актуальный) | `hub.oscript.io` |
-| `opm_hub` | старый хаб | `hub-old.oscript.io` |
+| `openhub` | хаб пакетов | `hub.oscript.io` |
 | `jenkins` | CI | `build.oscript.io` |
 | `minio` | S3-хранилище артефактов | `s3.oscript.io` |
 | `lgtm` | Grafana, Tempo, Loki, Prometheus | `grafana.oscript.io` |
@@ -24,7 +23,7 @@ Docker Compose · nginx (образ с `ngx_otel_module`) · Let's Encrypt/certb
 | `s3-sync` | зеркалирование `web_content` во внешний S3 | — |
 | `tg_bot` | Telegram-бот | — |
 
-Общий том `web_content` — статика сайта и артефакты старого хаба. Файлы OpenHub — бакет `openhub` в MinIO.
+Общий том `web_content` — статика сайта. Файлы OpenHub — бакет `openhub` в MinIO.
 
 ## Структура репозитория
 
@@ -35,7 +34,6 @@ web/certbot/                # сертификаты (gitignore)
 monitoring/                 # дашборды Grafana, otelcol-*, роль grafana_ro, тесты
 minio/                      # образ MinIO, bootstrap учёток и бакетов
 jenkins/                    # образ Jenkins (mono, docker, onescript)
-openhub-migration/          # разовый перенос метаданных opm-hub → OpenHub
 S3/                         # rclone-синхронизация во внешнее хранилище
 bot/                        # исходники Telegram-бота (образ — внешний)
 docker/                     # Dockerfile для сборок в Jenkins
@@ -58,8 +56,6 @@ docker/                     # Dockerfile для сборок в Jenkins
 Переменные окружения хаба в `docker-compose.yml` (секция `openhub`). Имена ключей: точка настройки → подчёркивание, внутреннее `_` удваивается (`OSHUB_INSTANCE_TRUSTED__PROXIES`).
 
 Первый запуск: переменные из `openhub.env.example` → DNS → сертификаты → бакет и учётка в MinIO → роль `grafana_ro` (`monitoring/grafana-db-role.sql`) → `docker-compose up -d openhub` → `/setup` для первого админа.
-
-Перенос дат и метаданных со старого хаба: [`openhub-migration/README.md`](openhub-migration/README.md).
 
 ### Мониторинг
 
@@ -92,7 +88,6 @@ Bootstrap при старте: `minio/bootstrap.sh`. Политики: `minio/po
 
 | Тема | Документ |
 | --- | --- |
-| перенос метаданных opm-hub → OpenHub | [`openhub-migration/README.md`](openhub-migration/README.md) |
 | трассировка, robots, rate limit hub | комментарии в `web/nginx/conf.d/otel.conf`, `hub-limits.conf`; тест `web/nginx/test/run.sh` |
 | справочный дашборд и роль БД | `monitoring/grafana-db-role.sql`, `monitoring/grafana-datasource-openhub-db.yaml` |
 | переменные OpenHub | `openhub.env.example`, секция `openhub` в `docker-compose.yml` |

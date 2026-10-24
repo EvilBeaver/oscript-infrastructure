@@ -8,7 +8,6 @@
 | --- | --- |
 | [oscript.io](https://oscript.io) | Основной сайт проекта |
 | [hub.oscript.io](https://hub.oscript.io) | Хаб пакетов [OpenHub](https://github.com/Segate-ekb/openhub) |
-| [hub-old.oscript.io](https://hub-old.oscript.io) | Прежний хаб пакетов (opm-hub) |
 | [build.oscript.io](https://build.oscript.io) | Jenkins — сборки и CI |
 | [s3.oscript.io](https://s3.oscript.io) | MinIO — S3-совместимое хранилище артефактов |
 | [grafana.oscript.io](https://grafana.oscript.io) | Мониторинг (Grafana, метрики, логи, трассы) |
@@ -33,7 +32,6 @@ web/certbot/             — сертификаты (не в git)
 monitoring/              — дашборды Grafana, конфиги коллекторов
 minio/                   — образ MinIO и начальная настройка
 jenkins/                 — образ Jenkins
-openhub-migration/       — скрипты разового переноса данных со старого хаба
 S3/                      — синхронизация файлов во внешнее хранилище
 bot/                     — исходники Telegram-бота
 ```
@@ -66,5 +64,4 @@ docker-compose up -d
 
 ## Дополнительно
 
-- **Перенос данных со старого хаба** — [`openhub-migration/README.md`](openhub-migration/README.md)
 - **Настройка OpenHub с нуля** — переменные в `openhub.env.example`, первый администратор через `/setup` на hub.oscript.io

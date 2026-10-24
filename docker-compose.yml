@@ -13,7 +13,7 @@ services:
       - ./web/certbot/www:/var/www/certbot
       - ./logs/nginx:/var/log/nginx
     depends_on:
-      - opm_hub
+      - openhub
       - site
       - certbot
       - minio
@@ -29,31 +29,6 @@ services:
       - publish_secret
     volumes:
       - web_content:/var/www/
-
-  opm_hub:
-    image: evilbeaver/os-hub:15
-    ports:
-      - "5000"
-    environment:
-      - OSHUB_BINARY_ROOT=/var/www/hub.oscript.io
-      - GITHUB_AUTH_TOKEN
-      - GITHUB_SUPER_TOKEN
-      - OSWEB_Database__DBType
-      - OSWEB_Database__ConnectionString
-      - OSHUB_DEFAULT_USER
-      - OSHUB_DEFAULT_PASSWORD
-      - OSHUB_TG_NOTIFICATION
-      - CHAT_NOTIFIER_URL
-      - CHAT_NOTIFIER_LOGIN
-      - CHAT_NOTIFIER_TOKEN
-      - TELEGRAM_GROUP_ID
-    volumes:
-      - web_content:/var/www/
-    restart: unless-stopped
-    depends_on:
-      - opm_hub_db
-    ulimits:
-      core: 0
 
   jenkins:
     build: jenkins
@@ -76,16 +51,6 @@ services:
     extra_hosts:
       - "host.docker.internal:172.17.0.1"
 
-  opm_hub_db:
-    image: postgres:12
-    ports:
-      - 5432:5432
-    volumes:
-     - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-  
   certbot:
     image: certbot/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
@@ -264,7 +229,6 @@ networks:
 volumes:
   web_content:
   jenkins_home:
-  postgres_data:
   minio_data:
   openhub_data:
   openhub_postgres_data:
