@@ -18,7 +18,7 @@
 | Задержка до другой ноды | меньше 1,1 мс по замерам до туннеля; после WireGuard перемерить | |
 | Сервисы | nginx, site, jenkins, certbot, tg_bot, s3-sync, openhub, openhub_db, hostmetrics | minio, lgtm, hostmetrics |
 | Позже, не в окне переноса | Portainer Agent | Portainer Server |
-| Каталог | `/opt/oscript` после [переноса](07-move-clone.md). Сейчас боевой clone — `/home/andrei/os`. Новый путь общий для людей из группы `docker`, не домашний каталог | `/opt/oscript`, новый clone, те же права |
+| Каталог | `/opt/oscript`, владелец `deploy`, группа `docker`. Общий каталог, не домашний | `/opt/oscript`, новый clone, те же права |
 | Имя проекта Compose | `os`. Тома остаются `os_*`, хотя каталог больше не называется `os` | то же `os` |
 | Кто применяет Ansible | пользователь `deploy` | пользователь `deploy` |
 
@@ -39,7 +39,7 @@ Jenkins остаётся на A: ему нужен `/var/run/docker.sock`. Об�
 
 - Control node — нода B. Оператор заходит на B и запускает `ansible-playbook`. GitHub Actions в первой версии нет. Позже допустим self-hosted runner на B; runner в облаке GitHub control node не становится.
 - Ansible управляет обеими нодами от пользователя `deploy` (sudo без пароля, группа `docker`). На A система остаётся Ubuntu 16.04.7, Docker не переустанавливается. Один раз руками: Python 3.9 и учётка `deploy`. Дальше — роли.
-- Ветка деплоя задаётся параметром `deploy_ref` (ветка, тег или SHA) репозитория `EvilBeaver/oscript-infrastructure`. Пока старый стек работает, это `master`. Весь рефакторинг (главы 3–5) ведётся в отдельной ветке `feature/multi-host`, `master` не трогается до остановки старого стека. Новый стек разворачивается с `deploy_ref=feature/multi-host`; в `master` ветка вливается после приёмки, и `deploy_ref` возвращается к `master`. Fork и незакоммиченный конфликт compose на A к деплою не подмешиваются.
+- Ветка деплоя задаётся параметром `deploy_ref` (ветка, тег или SHA) репозитория `EvilBeaver/oscript-infrastructure`. Пока старый стек работает, это `master`. Весь рефакторинг (главы 3–5) ведётся в отдельной ветке `feature/multi-host`, `master` не трогается до остановки старого стека. Новый стек разворачивается с `deploy_ref=feature/multi-host`; в `master` ветка вливается после приёмки, и `deploy_ref` возвращается к `master`. Fork к деплою не подмешивается. Каталог на A — `/opt/oscript` на `origin/master`.
 - Секреты: файл `ansible-vault` лежит на B вне репозитория, на хостах Ansible рисует `.env`. HashiCorp Vault не ставим. Репозиторий публичный — в git нет ни открытых секретов, ни ciphertext.
 - Образы собираются на той ноде, где крутится сервис, из текущих каталогов (`web/nginx`, `jenkins`, `minio`, `S3`). Отдельный registry и перекладка дерева в `build/` / `assets/` не нужны.
 - Portainer желателен и не блокирует перенос. Server на B, Agent на A, интерфейс только через SSH на адрес туннеля.

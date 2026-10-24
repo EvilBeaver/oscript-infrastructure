@@ -4,6 +4,8 @@
 
 Снимок 2026-10-18 с живой A. Это спецификация ролей `common`, `firewall`, `spoofdpi`, `wireguard` и проверка «после = как до». Сырой дамп (iptables, crontab, unit-файлы) в git не кладём: репозиторий публичный. Перед тем как роль начнёт управлять файрволом, оператор ещё раз снимает эталон скриптом и вычитывает его на токены; в книгу попадают уже обезличенные факты.
 
+Каталог стека с 2026-10-24 — `/opt/oscript` (раздел «Git на A»). Остальное в этой главе — снимок 2026-10-18.
+
 ## Хост
 
 | Параметр | Значение |
@@ -26,7 +28,7 @@
 | Тот CLI, которым создан стек | `docker-compose` **v1.23.2** (`/usr/local/bin/docker-compose`) |
 | Плагин | `docker compose` v2.40.3 в `/usr/local/lib/docker/cli-plugins/`. Оператор подтвердил: `up` проходит и v1, и этим плагином |
 | Имена контейнеров | `os_nginx_1`, `os_openhub_1`, … — подчёркивания, так именует v1. Плагин v2 без явного `container_name` создаст `os-openhub-1` |
-| Проект | имя каталога `os`. В `.env` переменной `COMPOSE_PROJECT_NAME` нет |
+| Проект | `os` (`COMPOSE_PROJECT_NAME=os` в `.env`). Тома `os_*`. Каталог стека — `/opt/oscript` |
 | `daemon.json` | json-file, `max-size` 1g, `max-file` 3, registry-mirrors (gcr, timeweb). Drop-in у `docker.service` нет |
 | Сети | `bridge` `172.17.0.0/16`, `os_default` `172.18.0.0/16`, `os_openhub` `172.19.0.0/16` |
 | `DOCKER_GID` | 995, совпадает с подстановкой в compose |
@@ -82,19 +84,14 @@ ExecStart=/usr/local/bin/spoofdpi -listen-addr 0.0.0.0:8888 --no-tui true --log-
 
 ## Git на A
 
-Боевой каталог подтверждён по bind-mount: `/home/andrei/os` (сертификаты nginx, логи, файлы `monitoring/`). Каталог `/home/segate/os-compose` — не git и не боевой compose; это набор старых копий файла.
+Боевой каталог — `/opt/oscript` (сертификаты nginx, логи, файлы `monitoring/`). Владелец `deploy`, группа `docker`, каталоги `2755`. Pull делает `deploy`. Ветка `master`, дерево на `origin/master`. `.env` в режиме `0640`, владелец `deploy`, группа `docker`, в файле есть `COMPOSE_PROJECT_NAME=os`.
 
-Дерево принадлежит `root:root`, включая `.git`. Ручной pull сегодня — `sudo git -C /home/andrei/os pull`. Для людей из группы `docker` это чужой домашний каталог. Целевое место — `/opt/oscript`, владелец `deploy`, группа `docker`.
-
-`.env` имеет режим `0777`, владелец `otymko`: секрет читает любой локальный пользователь. При переносе — `0640`, владелец `deploy`, группа `docker`.
-
-`git status` показывает `UU docker-compose.yml`, HEAD `645fb76`. Есть второй remote `Segate-ekb`. Это состояние не разбирается: при переносе каталог сбрасывается на `origin/master` этого репозитория. Сохраняются только неотслеживаемые `.env`, `web/certbot/` и `logs/` (в gitignore из них `.env`, `logs/`, `web/certbot/conf/`).
+Каталог `/home/segate/os-compose` — не git и не боевой compose; это набор старых копий файла.
 
 Внешние проверки доменов — StatusCake. На хостах от него ничего не установлено; в окне переноса паузу ставят в их кабинете.
 
 ## Что ещё снимает оператор
 
-- Какая копия `docker-compose.yml` сейчас реально запущена и в какую ветку её коммитить.
 - Имена переменных боевого `.env` без значений — сверить с `openhub.env.example`, `minio/.env.example` и корневым compose.
 - Публичный IP A — в inventory на B.
 - Установлен ли `rsync` на A: окно переноса (этап 7) копирует тома с A на B через `sudo rsync`.
