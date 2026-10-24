@@ -97,7 +97,7 @@ ExecStart=/usr/local/bin/spoofdpi -listen-addr 0.0.0.0:8888 --no-tui true --log-
 - Какая копия `docker-compose.yml` сейчас реально запущена и в какую ветку её коммитить.
 - Имена переменных боевого `.env` без значений — сверить с `openhub.env.example`, `minio/.env.example` и корневым compose.
 - Публичный IP A — в inventory на B.
-- Установлен ли `rsync` на A: P3 копирует тома с A на B через `sudo rsync`.
+- Установлен ли `rsync` на A: окно переноса (этап 7) копирует тома с A на B через `sudo rsync`.
 - `iperf3` до B и повторный `ping` уже по WireGuard.
 - Свободное место и тип диска на B (под данные MinIO и LGTM с запасом; сами тома около 5 ГБ).
 - В UI Jenkins: есть ли Artifact Manager и какой у него endpoint. Пока артефакты в облачном S3.
