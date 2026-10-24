@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Сертификат для одного нового домена, остальные не трогает:
-#   ./add-letsencrypt-domain.sh hub-new.oscript.io
+#   ./add-letsencrypt-domain.sh new.oscript.io
 
 set -e
 

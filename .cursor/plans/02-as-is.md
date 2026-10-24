@@ -33,7 +33,7 @@
 
 Роль на A Docker не переустанавливает. `daemon.json` не затирать. Любую новую возможность Compose проверять командой `docker compose config` на самой A до `up`: Engine старый.
 
-Контейнеры стека: openhub `segateekb/openhub:0.21.0`, nginx, site, lgtm `grafana/otel-lgtm:0.33.1`, hostmetrics, jenkins, minio, openhub_db (Postgres 17), tg_bot, certbot, s3-sync. Образ `segateekb/openhub:0.22.0` скачан и не запущен — модули пинят **0.21.0**. `opm_hub` и `opm_hub_db` в состоянии `Exited`: вывод старого хаба начат, vhost, DNS и тома ещё на месте.
+Контейнеры стека: openhub `segateekb/openhub:0.21.0`, nginx, site, lgtm `grafana/otel-lgtm:0.33.1`, hostmetrics, jenkins, minio, openhub_db (Postgres 17), tg_bot, certbot, s3-sync. Образ `segateekb/openhub:0.22.0` скачан и не запущен — модули пинят **0.21.0**. Контейнеры `opm_hub` и `opm_hub_db` в состоянии `Exited`. Сертификат, DNS и том `os_postgres_data` ещё на ноде. В репозитории сервисы, vhost и имя `hub-old.oscript.io` уже сняты.
 
 Тома `os_*`:
 
@@ -45,7 +45,7 @@
 | `os_minio_data` | около 2,2–2,3 ГБ | на B |
 | `os_openhub_data` | 213 МБ | остаётся на A |
 | `os_openhub_postgres_data` | около 70 МБ | остаётся на A |
-| `os_postgres_data` | 67 МБ | старый хаб, на A до вывода |
+| `os_postgres_data` | 67 МБ | бывший хаб, остаётся на A |
 
 Хеш-тома и `buildx_*` к стеку не относятся.
 

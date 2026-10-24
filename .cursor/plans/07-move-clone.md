@@ -114,8 +114,7 @@ git config --system --add safe.directory /opt/oscript
 
 ```bash
 cd /opt/oscript
-sudo docker-compose up -d
-sudo docker-compose stop opm_hub opm_hub_db
+sudo docker-compose up -d --remove-orphans
 sudo docker-compose ps
 sudo docker volume ls | grep os_
 ```

@@ -36,7 +36,7 @@
 - `env/node_a.env.example` и `env/node_b.env.example` — имена переменных, значения пустые;
 - `ops/dc.sh` — обёртка `docker compose` с `--project-directory` и `--env-file` (подхватывает `COMPOSE_FILE` из `.env`).
 
-Корневой `docker-compose.yml` в этом коммите не редактируется (кроме снятия `opm_hub` из `depends_on` у `nginx`, если это делается до M0, чтобы `up -d` не поднимал остановленный старый хаб). `init-letsencrypt.sh`, `add-letsencrypt-domain.sh`, `openhub-migration/*.sh`, `README.md` и `AGENTS.md` в этом коммите тоже не редактируются. Иначе книга для агента и боевая команда на A разойдутся раньше окна.
+Корневой `docker-compose.yml` в этом коммите не редактируется. Сервисов `opm_hub` и `opm_hub_db` в нём уже нет — в модули их не переносить. `init-letsencrypt.sh`, `add-letsencrypt-domain.sh`, `openhub-migration/*.sh`, `README.md` и `AGENTS.md` в этом коммите тоже не редактируются. Иначе книга для агента и боевая команда на A разойдутся раньше окна.
 
 Тесты `./web/nginx/test/run.sh` и `./monitoring/test/run.sh` остаются на своих `docker-compose.yml` внутри `web/nginx/test` и `monitoring/test`. В `web/nginx/test/docker-compose.yml` добавляется сетевой алиас `minio` (для статического `proxy_pass`), а в `monitoring/otelcol-nginx.yaml` — `${NGINX_STATUS_ENDPOINT:-http://nginx:8080/nginx_status}`. В Коммите 3 `monitoring/test/docker-compose.yml` переключает `extends.file` с корневого `../../docker-compose.yml` на `../../compose/apps/hostmetrics.yml`, так как `extends` в Compose не проходит сквозь `include`.
 
