@@ -1,0 +1,34 @@
+---
+- name: Oscript infrastructure
+  hosts: oscript
+  pre_tasks:
+    - name: Запретить прогон с примером inventory
+      ansible.builtin.assert:
+        that:
+          - inventory_is_example is defined
+          - not (inventory_is_example | bool)
+        fail_msg: "Нужен боевой inventory с inventory_is_example=false"
+
+  roles:
+    - role: common
+    - role: firewall
+      tags:
+        - firewall
+        - never
+    - role: spoofdpi
+      tags:
+        - spoofdpi
+        - never
+      when: spoofdpi_enabled | default(false) | bool
+    - role: wireguard
+      tags:
+        - wg
+        - never
+    - role: app
+      tags:
+        - app
+        - never
+    - role: portainer
+      tags:
+        - portainer
+        - never

@@ -1,0 +1,139 @@
+---
+- name: Проверить версию ansible-core на контроллере
+  ansible.builtin.command:
+    cmd: ansible --version
+  register: common_ansible_version
+  changed_when: false
+  delegate_to: node_b
+  run_once: true
+  become: false
+
+- name: Убедиться, что ansible-core {{ ansible_core_version_expected }}
+  ansible.builtin.assert:
+    that:
+      - ansible_core_version_expected in common_ansible_version.stdout
+    fail_msg: >-
+      На контроллере нужен ansible-core {{ ansible_core_version_expected }}
+      (pipx install 'ansible-core=={{ ansible_core_version_expected }}').
+  run_once: true
+
+- name: Список коллекций на контроллере
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection list
+  register: common_galaxy_list
+  changed_when: false
+  delegate_to: node_b
+  run_once: true
+  become: false
+
+- name: Убедиться, что community.docker {{ community_docker_version_expected }}
+  ansible.builtin.assert:
+    that:
+      - >-
+        community_docker_version_expected in common_galaxy_list.stdout
+        or ('community.docker ' ~ community_docker_version_expected) in common_galaxy_list.stdout
+    fail_msg: >-
+      Установите коллекции: ansible-galaxy collection install -r ansible/requirements.yml
+  run_once: true
+
+- name: Убедиться, что community.general {{ community_general_version_expected }}
+  ansible.builtin.assert:
+    that:
+      - >-
+        community_general_version_expected in common_galaxy_list.stdout
+        or ('community.general ' ~ community_general_version_expected) in common_galaxy_list.stdout
+    fail_msg: >-
+      Установите коллекции: ansible-galaxy collection install -r ansible/requirements.yml
+  run_once: true
+
+- name: Проверить Docker Engine
+  ansible.builtin.command:
+    cmd: docker version
+  register: common_docker_version
+  changed_when: false
+  failed_when: common_docker_version.rc != 0
+
+- name: Проверить docker compose plugin
+  ansible.builtin.command:
+    cmd: docker compose version
+  register: common_compose_version
+  changed_when: false
+  failed_when: common_compose_version.rc != 0
+
+- name: Установить базовые пакеты на worker (Ubuntu 24.04)
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - rsync
+      - gnupg
+    state: present
+    update_cache: true
+  when: inventory_hostname == 'node_b'
+  tags:
+    - common
+    - never
+
+- name: Добавить репозиторий Docker на worker
+  ansible.builtin.shell: |
+    set -euo pipefail
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    chmod a+r /etc/apt/keyrings/docker.asc
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+  args:
+    executable: /bin/bash
+    creates: /etc/apt/sources.list.d/docker.list
+  when: inventory_hostname == 'node_b'
+  tags:
+    - common
+    - never
+
+- name: Установить Docker CE и compose-plugin на worker
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+  when: inventory_hostname == 'node_b'
+  tags:
+    - common
+    - never
+
+- name: Каталог стека {{ stack_dir }}
+  ansible.builtin.file:
+    path: "{{ stack_dir }}"
+    state: directory
+    owner: deploy
+    group: docker
+    mode: "2755"
+  when: inventory_hostname == 'node_b'
+  tags:
+    - common
+    - never
+
+- name: rsync на edge (для копирования томов на этапе 7)
+  ansible.builtin.include_tasks: "{{ role_path }}/../../tasks/apt_install.yml"
+  vars:
+    apt_package: rsync
+  when:
+    - inventory_hostname == 'node_a'
+    - ansible_distribution_release == 'xenial'
+  tags:
+    - common
+    - never
+
+- name: rsync на edge (не-Xenial)
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+  when:
+    - inventory_hostname == 'node_a'
+    - ansible_distribution_release != 'xenial'
+  tags:
+    - common
+    - never

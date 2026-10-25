@@ -1,0 +1,42 @@
+---
+- name: Portainer без секрета не разворачивается
+  ansible.builtin.meta: end_host
+  when: portainer_agent_secret is not defined or (portainer_agent_secret | string | length) == 0
+  tags:
+    - portainer
+    - never
+
+- name: Каталог Portainer
+  ansible.builtin.file:
+    path: "{{ portainer_project_dir }}"
+    state: directory
+    owner: deploy
+    group: docker
+    mode: "0755"
+  tags:
+    - portainer
+    - never
+
+- name: Compose Portainer
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ portainer_project_dir }}/compose.yaml"
+    owner: deploy
+    group: docker
+    mode: "0640"
+  no_log: true
+  tags:
+    - portainer
+    - never
+
+- name: Поднять Portainer
+  community.docker.docker_compose_v2:
+    project_src: "{{ portainer_project_dir }}"
+    project_name: portainer
+    files:
+      - compose.yaml
+    state: present
+  no_log: true
+  tags:
+    - portainer
+    - never

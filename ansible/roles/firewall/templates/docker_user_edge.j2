@@ -1,0 +1,5 @@
+-A DOCKER-USER -j RETURN -m conntrack --ctstate RELATED,ESTABLISHED
+-A DOCKER-USER -i {{ firewall_wan_if }} -p tcp -m multiport --dports 80,443,50000 -j RETURN
+-A DOCKER-USER -i {{ firewall_wan_if }} -j DROP
+-A INPUT -i docker0 -p tcp --dport 8888 -j ACCEPT
+-A INPUT -i br+ -p tcp --dport 8888 -j ACCEPT

@@ -1,0 +1,179 @@
+---
+- name: Согласованность compose_files и compose_file_env
+  ansible.builtin.assert:
+    that:
+      - compose_file_env == (compose_files | join(':'))
+    fail_msg: "compose_file_env должен совпадать с compose_files через ':'"
+  tags:
+    - app
+    - never
+
+- name: deploy_ref обязателен при изменяющих флагах app
+  ansible.builtin.assert:
+    that:
+      - deploy_ref is defined
+      - (deploy_ref | string | length) > 0
+    fail_msg: "Передайте -e deploy_ref=feature/multi-host (или нужную ветку)"
+  when: app_checkout | bool or app_apply | bool or app_compose_up | bool
+  tags:
+    - app
+    - never
+
+- name: Проверить git status перед checkout
+  ansible.builtin.command:
+    cmd: git status --porcelain --untracked-files=no
+    chdir: "{{ stack_dir }}"
+  register: app_git_status
+  changed_when: false
+  failed_when: false
+  become: false
+  when: app_checkout | bool
+  tags:
+    - app
+    - never
+
+- name: Запретить checkout при локальных правках tracked-файлов
+  ansible.builtin.assert:
+    that:
+      - app_git_status.stdout | length == 0
+    fail_msg: "В {{ stack_dir }} есть локальные изменения tracked-файлов; checkout отменён"
+  when:
+    - app_checkout | bool
+    - app_git_status.rc == 0
+  tags:
+    - app
+    - never
+
+- name: Обновить репозиторий стека
+  ansible.builtin.git:
+    repo: https://github.com/EvilBeaver/oscript-infrastructure.git
+    dest: "{{ stack_dir }}"
+    version: "{{ deploy_ref }}"
+    update: true
+  become: false
+  when: app_checkout | bool
+  tags:
+    - app
+    - never
+
+- name: Владелец каталога стека
+  ansible.builtin.file:
+    path: "{{ stack_dir }}"
+    state: directory
+    owner: deploy
+    group: docker
+    mode: "2755"
+    recurse: true
+  when: app_checkout | bool or app_apply | bool
+  tags:
+    - app
+    - never
+
+- name: GID группы docker
+  ansible.builtin.command:
+    cmd: getent group docker
+  register: app_docker_group
+  changed_when: false
+  when: app_apply | bool
+  tags:
+    - app
+    - never
+
+- name: DOCKER_GID
+  ansible.builtin.set_fact:
+    app_docker_gid: "{{ app_docker_group.stdout.split(':')[2] }}"
+  when: app_apply | bool
+  tags:
+    - app
+    - never
+
+- name: Проверить обязательные ключи .env
+  ansible.builtin.assert:
+    that:
+      - item in vars
+      - (vars[item] | string | length) > 0
+    fail_msg: "Для .env не задано или пусто: {{ item }}"
+  loop: "{{ app_env_required_keys }}"
+  loop_control:
+    label: "{{ item }}"
+  when: app_apply | bool
+  no_log: true
+  tags:
+    - app
+    - never
+
+- name: Проверить OTEL_HOST_NAME и DOCKER_GID
+  ansible.builtin.assert:
+    that:
+      - otel_host_name is defined
+      - (otel_host_name | string | length) > 0
+      - app_docker_gid is defined
+      - (app_docker_gid | string | length) > 0
+  when: app_apply | bool
+  tags:
+    - app
+    - never
+
+- name: Каталог бэкапов .env
+  ansible.builtin.file:
+    path: /var/lib/oscript/env-backups
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0700"
+  when: app_apply | bool
+  tags:
+    - app
+    - never
+
+- name: Есть ли .env
+  ansible.builtin.stat:
+    path: "{{ stack_dir }}/.env"
+  register: app_env_stat
+  when: app_apply | bool
+  tags:
+    - app
+    - never
+
+- name: Бэкап .env перед записью
+  ansible.builtin.copy:
+    src: "{{ stack_dir }}/.env"
+    dest: "/var/lib/oscript/env-backups/.env-{{ ansible_date_time.iso8601_basic_short }}"
+    remote_src: true
+    owner: deploy
+    group: deploy
+    mode: "0600"
+  when:
+    - app_apply | bool
+    - app_env_stat.stat.exists
+  tags:
+    - app
+    - never
+
+- name: Записать .env
+  ansible.builtin.template:
+    src: "env-{{ inventory_hostname }}.j2"
+    dest: "{{ stack_dir }}/.env"
+    owner: deploy
+    group: docker
+    mode: "0640"
+  no_log: true
+  diff: false
+  when: app_apply | bool
+  tags:
+    - app
+    - never
+
+- name: Поднять стек compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_dir }}"
+    project_name: "{{ project_name }}"
+    files: "{{ compose_files }}"
+    env_files:
+      - .env
+    state: present
+  no_log: true
+  when: app_compose_up | bool
+  tags:
+    - app
+    - never

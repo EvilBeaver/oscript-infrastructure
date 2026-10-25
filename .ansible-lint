@@ -1,0 +1,7 @@
+---
+profile: min
+skip_list:
+  - name[casing]
+  - command-instead-of-module
+  - no-changed-when
+  - yaml[line-length]

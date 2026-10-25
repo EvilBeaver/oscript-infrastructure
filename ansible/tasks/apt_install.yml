@@ -1,0 +1,15 @@
+---
+# Пакеты на Xenial: без ansible.builtin.apt (python-apt только для Python 3.5).
+- name: Проверить установку пакета {{ apt_package }}
+  ansible.builtin.command:
+    cmd: dpkg-query -W -f='${Status}' {{ apt_package }}
+  register: apt_install_dpkg
+  changed_when: false
+  failed_when: false
+
+- name: Установить пакет {{ apt_package }} через apt-get
+  ansible.builtin.command:
+    cmd: apt-get install -y {{ apt_package }}
+  become: true
+  when: apt_install_dpkg.stdout is not search('install ok installed')
+  changed_when: apt_install_dpkg.stdout is not search('install ok installed')

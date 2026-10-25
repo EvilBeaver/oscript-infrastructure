@@ -1,0 +1,15 @@
+# Минимальный каркас ufw after.rules для теста blockinfile (не боевой эталон).
+*filter
+:ufw-before-input - [0:0]
+:ufw-after-input - [0:0]
+:ufw-before-output - [0:0]
+:ufw-after-output - [0:0]
+:ufw-before-forward - [0:0]
+:ufw-after-forward - [0:0]
+:ufw-not-local - [0:0]
+:ufw-user-input - [0:0]
+:ufw-user-output - [0:0]
+:ufw-user-forward - [0:0]
+:DOCKER-USER - [0:0]
+-A ufw-user-input -j RETURN
+COMMIT

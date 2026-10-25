@@ -5,13 +5,16 @@
 Ansible здесь — команда, которую человек запускает на ноде B. Демона и панели нет. Между прогонами на хостах ничего само не применяется. Пока плейбука нет, A обновляют как сейчас: `git pull` и `docker compose up -d` в каталоге стека.
 
 ```bash
-# на B, под пользователем deploy
+# на B, под пользователем deploy; боевой inventory с inventory_is_example=false
 cd /opt/oscript
 ansible-playbook ansible/site.yml \
   -e @/opt/oscript-secrets/vault.yml \
   --vault-password-file /opt/oscript-secrets/vault_pass
-# точечно: --limit node_a   или   --tags wg
+# роли, меняющие хост, помечены тегом never — указывайте его вместе с ролью:
+#   --tags wg,never   --tags firewall,never   --tags common,never,firewall
 ```
+
+Голый `ansible-playbook ansible/site.yml` без тегов выполняет только проверку inventory и версий Ansible/Docker; файрвол, WireGuard и остальное не трогает.
 
 Плейбук по SSH заходит на A как `deploy` и локально, тем же пользователем, приводит B к описанному состоянию.
 
@@ -34,12 +37,17 @@ ansible-playbook ansible/site.yml \
 edge
 worker
 
+[oscript:vars]
+inventory_is_example=false
+
 [edge]
-node_a ansible_host=<публичный IP A> ansible_user=deploy ansible_python_interpreter=/usr/local/bin/python3.9 ansible_ssh_private_key_file=/home/deploy/.ssh/oscript_deploy
+node_a ansible_host=<публичный IP A> public_ip=<публичный IP A> ansible_user=deploy ansible_python_interpreter=/usr/local/bin/python3.9 ansible_ssh_private_key_file=/home/deploy/.ssh/oscript_deploy
 
 [worker]
-node_b ansible_connection=local ansible_user=deploy
+node_b ansible_connection=local ansible_user=deploy public_ip=<публичный IP B>
 ```
+
+Образец для `ansible-playbook --syntax-check` — [`ansible/inventory.example.ini`](../../ansible/inventory.example.ini) с `inventory_is_example=true` (прогон с ним на хосты запрещён assert'ом).
 
 `host_key_checking` в корневом `ansible.cfg` включён (файл лежит в `/opt/oscript/ansible.cfg`, чтобы подхватываться при запуске из `/opt/oscript`). Ключ хоста A принимается один раз при первом SSH, не отключается в конфиге.
 
@@ -68,19 +76,19 @@ sudo apt-get install -y build-essential libssl-dev zlib1g-dev libffi-dev \
 
 Модуль `ansible.builtin.apt` на A не использовать: `python-apt` есть только для системного 3.5. Пакеты в ролях для A ставятся командой `apt-get … -y` с проверкой через `dpkg -s`. Модули `file`, `template`, `copy`, `systemd`, `git`, `command` и `community.docker` от `python-apt` не зависят.
 
-На B (Ubuntu 24.04) роль `common` ставит Docker CE и compose-plugin из репозитория Docker, не из snap, и пакет `ansible` удобным для оператора способом (`apt` или `pipx`) плюс коллекции из `ansible/requirements.yml`. Версия `community.docker` закреплена и совместима с ansible-core 2.18.
+На B (Ubuntu 24.04) **Ansible на control node** ставят один раз вручную через pipx (`ansible-core==2.18.11`, коллекции из `ansible/requirements.yml`: `community.docker` 4.8.2, `community.general` 10.7.6). Пакет `ansible` из apt Noble (core 2.16) не подходит. Роль `common` только проверяет версии core и коллекций и падает при расхождении; сами пакеты Ansible она не ставит.
 
 Готовность A: `ansible node_a -m ping` и `ansible node_a -b -m command -a id`.
 
 ## Один раз руками на B, до первого плейбука
 
-Роль `common` ставит Ansible на B уже из клона, поэтому начальная настройка B ручная. Всё остальное делают роли.
+Начальная настройка B ручная; роль `common` Ansible не устанавливает.
 
-1. Пользователь `deploy`: sudo без пароля, группа `docker` (группу создаёт установка Docker, поэтому порядок: Docker, затем добавление в группу). Ключ `~/.ssh/oscript_deploy`, публичная часть уходит на A (`authorized_keys` с `from="<IP B>"`).
-2. Docker CE и compose-plugin из репозитория Docker (на B дальше их поддерживает роль `common`).
-3. Каталог `/opt/oscript`: владелец `deploy:docker`, `2755`. Клон репозитория (`deploy_ref`), `git config --system --add safe.directory /opt/oscript`.
-4. Ansible и коллекции из `ansible/requirements.yml`.
-5. `/opt/oscript-secrets/` (`0700`, владелец `deploy`), `vault.yml` и `vault_pass` (`0400`), копия в менеджере паролей. `ansible/inventory.ini` из образца.
+1. Пользователь `deploy`: sudo без пароля, группа `docker`. Ключ `~/.ssh/oscript_deploy`, публичная часть на A (`authorized_keys` с `from="<IP B>"`).
+2. pipx: `pipx install 'ansible-core==2.18.11'`, затем `ansible-galaxy collection install -r /opt/oscript/ansible/requirements.yml`.
+3. Каталог `/opt/oscript`: владелец `deploy:docker`, `2755`. Клон репозитория, `git config --system --add safe.directory /opt/oscript`.
+4. Docker CE и compose-plugin (дальше поддерживает роль `common` с тегами `common,never`).
+5. `/opt/oscript-secrets/` (`0700`), `vault.yml` и `vault_pass` (`0400`). `ansible/inventory.ini` из [`inventory.example.ini`](../../ansible/inventory.example.ini) с `inventory_is_example=false` и `ansible_connection=local` у `node_b`.
 
 Проверка: `ansible all -m ping` с B.
 
@@ -102,11 +110,11 @@ sudo apt-get install -y build-essential libssl-dev zlib1g-dev libffi-dev \
 
 ### Роль app
 
-- `ansible.builtin.git` от пользователя `deploy` (`become: false`): `repo` — этот репозиторий, `version: "{{ deploy_ref }}"` (по умолчанию `master`, на время миграции `feature/multi-host`). Локальные правки tracked-файлов на хосте не хранятся; источник истины — выбранный `deploy_ref`.
+- `ansible.builtin.git` только при `-e app_checkout=true` и обязательном `-e deploy_ref=…` (на миграции `feature/multi-host`). Локальные правки tracked-файлов роль не затирает.
 - Владелец дерева — `deploy:docker`, каталоги `2755`. Роль это поддерживает и не делает `chown` на человека. Системные роли по-прежнему с `become`.
 - Каталог не копируется с control node поверх clone: так затираются `web/certbot`, `.env` и логи. Исключения из git на хосте те же, что сейчас: `.env`, `web/certbot/`, логи, тома Docker.
 - `.env` режим `0640`, группа `docker`. Compose не вызывается, пока файла нет.
-- `project_name: os`, `env_files` указывают на `/opt/oscript/.env`.
+- `project_name: os`, `files: "{{ compose_files }}"`, `env_files: [.env]` относительно `project_src`.
 - Перед первым боевым `up` на A — копия `.env` и `docker volume ls`.
 
 ### Роль wireguard

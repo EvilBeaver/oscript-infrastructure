@@ -1,0 +1,88 @@
+---
+- name: Адрес docker0
+  ansible.builtin.command:
+    cmd: ip -4 -o addr show docker0
+  register: spoofdpi_docker0
+  changed_when: false
+  tags:
+    - spoofdpi
+    - never
+
+- name: Разобрать адрес docker0
+  ansible.builtin.set_fact:
+    spoofdpi_listen_ip: "{{ spoofdpi_docker0.stdout.split()[3].split('/')[0] }}"
+  tags:
+    - spoofdpi
+    - never
+
+- name: docker0 должен совпадать с extra_hosts Jenkins
+  ansible.builtin.assert:
+    that:
+      - spoofdpi_listen_ip == spoofdpi_expected_docker0
+    fail_msg: >-
+      docker0={{ spoofdpi_listen_ip }}, в compose Jenkins host.docker.internal={{ spoofdpi_expected_docker0 }}.
+      Согласуйте адреса до применения роли.
+  tags:
+    - spoofdpi
+    - never
+
+- name: Каталог загрузки SpoofDPI
+  ansible.builtin.file:
+    path: /usr/local/src/spoofdpi
+    state: directory
+    mode: "0755"
+  tags:
+    - spoofdpi
+    - never
+
+- name: Скачать SpoofDPI {{ spoofdpi_version }}
+  ansible.builtin.get_url:
+    url: "{{ spoofdpi_download_url }}"
+    dest: "/usr/local/src/spoofdpi/{{ spoofdpi_archive }}"
+    checksum: "sha256:{{ spoofdpi_sha256 }}"
+    mode: "0644"
+  tags:
+    - spoofdpi
+    - never
+
+- name: Распаковать бинарь SpoofDPI
+  ansible.builtin.unarchive:
+    src: "/usr/local/src/spoofdpi/{{ spoofdpi_archive }}"
+    dest: /usr/local/src/spoofdpi
+    remote_src: true
+    creates: "/usr/local/src/spoofdpi/spoofdpi"
+  tags:
+    - spoofdpi
+    - never
+
+- name: Установить бинарь SpoofDPI
+  ansible.builtin.copy:
+    src: /usr/local/src/spoofdpi/spoofdpi
+    dest: "{{ spoofdpi_binary_path }}"
+    mode: "0755"
+    remote_src: true
+  tags:
+    - spoofdpi
+    - never
+
+- name: Юнит spoof-dpi.service
+  ansible.builtin.template:
+    src: spoof-dpi.service.j2
+    dest: /etc/systemd/system/spoof-dpi.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart spoof-dpi
+  tags:
+    - spoofdpi
+    - never
+
+- name: spoof-dpi.service включён
+  ansible.builtin.systemd:
+    name: spoof-dpi.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags:
+    - spoofdpi
+    - never

@@ -1,0 +1,233 @@
+---
+- name: Имя переменной закрытого ключа в vault
+  ansible.builtin.set_fact:
+    wireguard_vault_private: "wireguard_{{ inventory_hostname }}_private_key"
+    wireguard_vault_public: "wireguard_{{ inventory_hostname }}_public_key"
+  tags:
+    - wg
+    - never
+
+- name: Пакет WireGuard на edge (Xenial)
+  ansible.builtin.include_tasks: "{{ role_path }}/../../tasks/apt_install.yml"
+  vars:
+    apt_package: wireguard-tools
+  when:
+    - inventory_hostname == 'node_a'
+    - ansible_distribution_release == 'xenial'
+  tags:
+    - wg
+    - never
+
+- name: Пакет WireGuard на edge (не Xenial)
+  ansible.builtin.apt:
+    name: wireguard-tools
+    state: present
+  when:
+    - inventory_hostname == 'node_a'
+    - ansible_distribution_release != 'xenial'
+  tags:
+    - wg
+    - never
+
+- name: Пакет WireGuard на worker
+  ansible.builtin.apt:
+    name: wireguard
+    state: present
+  when: inventory_hostname == 'node_b'
+  tags:
+    - wg
+    - never
+
+- name: Модуль wireguard в ядре
+  community.general.modprobe:
+    name: wireguard
+    state: present
+  tags:
+    - wg
+    - never
+
+- name: Автозагрузка модуля wireguard
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/wireguard.conf
+    content: "wireguard\n"
+    owner: root
+    group: root
+    mode: "0644"
+  tags:
+    - wg
+    - never
+
+- name: Закрытый ключ из vault
+  ansible.builtin.copy:
+    dest: "{{ wireguard_private_key_path }}"
+    content: "{{ vars[wireguard_vault_private] }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when:
+    - vars[wireguard_vault_private] is defined
+    - (vars[wireguard_vault_private] | string | length) > 0
+  tags:
+    - wg
+    - never
+
+- name: Сгенерировать ключи WireGuard
+  ansible.builtin.shell: |
+    set -euo pipefail
+    umask 077
+    wg genkey | tee "{{ wireguard_private_key_path }}"
+    wg pubkey < "{{ wireguard_private_key_path }}"
+  args:
+    executable: /bin/bash
+    creates: "{{ wireguard_private_key_path }}"
+  register: wireguard_keygen
+  when:
+    - vars[wireguard_vault_private] is not defined or (vars[wireguard_vault_private] | string | length) == 0
+  tags:
+    - wg
+    - never
+
+- name: Остановиться и показать публичный ключ для vault
+  ansible.builtin.fail:
+    msg: >-
+      Добавьте в vault: {{ wireguard_vault_private }} и {{ wireguard_vault_public }}={{ wireguard_keygen.stdout_lines[-1] }}
+  when:
+    - wireguard_keygen is changed
+    - vars[wireguard_vault_public] is not defined or (vars[wireguard_vault_public] | string | length) == 0
+  tags:
+    - wg
+    - never
+
+- name: Публичный ключ с диска
+  ansible.builtin.shell: |
+    set -euo pipefail
+    wg pubkey < "{{ wireguard_private_key_path }}"
+  args:
+    executable: /bin/bash
+  register: wireguard_local_pubkey
+  changed_when: false
+  no_log: true
+  tags:
+    - wg
+    - never
+
+- name: Сверить публичный ключ с vault
+  ansible.builtin.assert:
+    that:
+      - vars[wireguard_vault_public] is defined
+      - (vars[wireguard_vault_public] | string | length) > 0
+      - wireguard_local_pubkey.stdout | trim == vars[wireguard_vault_public] | trim
+    fail_msg: "Публичный ключ в vault не совпадает с закрытым на {{ inventory_hostname }}"
+  tags:
+    - wg
+    - never
+
+- name: Проверить маршрут 10.9.0.0/24 до подъёма wg0
+  ansible.builtin.command:
+    cmd: ip route show {{ wireguard_network }}
+  register: wireguard_route_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - wg
+    - never
+
+- name: Интерфейс wg0 существует
+  ansible.builtin.stat:
+    path: /sys/class/net/wg0
+  register: wireguard_wg0_stat
+  tags:
+    - wg
+    - never
+
+- name: Запретить конфликт маршрута до wg0
+  ansible.builtin.fail:
+    msg: "Маршрут {{ wireguard_network }} уже есть не через wg0: {{ wireguard_route_check.stdout }}"
+  when:
+    - not wireguard_wg0_stat.stat.exists
+    - wireguard_route_check.stdout | length > 0
+  tags:
+    - wg
+    - never
+
+- name: Запретить маршрут wg0 через чужой интерфейс
+  ansible.builtin.fail:
+    msg: "Маршрут {{ wireguard_network }} не через wg0: {{ wireguard_route_check.stdout }}"
+  when:
+    - wireguard_wg0_stat.stat.exists
+    - wireguard_route_check.stdout | length > 0
+    - "'dev wg0' not in wireguard_route_check.stdout"
+  tags:
+    - wg
+    - never
+
+- name: Публичные ключи пиров заданы
+  ansible.builtin.assert:
+    that:
+      - vars['wireguard_node_a_public_key'] is defined
+      - vars['wireguard_node_b_public_key'] is defined
+      - (vars['wireguard_node_a_public_key'] | string | length) > 0
+      - (vars['wireguard_node_b_public_key'] | string | length) > 0
+    fail_msg: "Задайте wireguard_node_a_public_key и wireguard_node_b_public_key в vault"
+  when: groups['edge'] | length > 0
+  tags:
+    - wg
+    - never
+
+- name: Прочитать закрытый ключ для шаблона
+  ansible.builtin.slurp:
+    src: "{{ wireguard_private_key_path }}"
+  register: wireguard_private_slurp
+  no_log: true
+  tags:
+    - wg
+    - never
+
+- name: Закрытый ключ в fact
+  ansible.builtin.set_fact:
+    wireguard_private_key_for_config: "{{ wireguard_private_slurp.content | b64decode | trim }}"
+  no_log: true
+  tags:
+    - wg
+    - never
+
+- name: Конфиг wg0
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: "{{ wireguard_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart wg-quick@wg0
+  when: groups['edge'] | length > 0
+  tags:
+    - wg
+    - never
+
+- name: wg-quick@wg0 включён
+  ansible.builtin.systemd:
+    name: wg-quick@wg0
+    enabled: true
+    state: started
+  when: groups['edge'] | length > 0
+  tags:
+    - wg
+    - never
+
+- name: Drop-in Docker после WireGuard
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/wg.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      After=wg-quick@wg0.service
+      Wants=wg-quick@wg0.service
+  notify:
+    - Systemd daemon-reload
+  tags:
+    - wg
+    - never

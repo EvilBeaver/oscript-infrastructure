@@ -1,0 +1,250 @@
+---
+- name: Подтверждение firewall (отдельный тег)
+  ansible.builtin.import_tasks: confirm.yml
+
+- name: WAN-интерфейс
+  ansible.builtin.set_fact:
+    firewall_wan_if: "{{ ansible_default_ipv4.interface }}"
+  tags:
+    - firewall
+    - never
+
+- name: Публичный IP пира для WireGuard
+  ansible.builtin.set_fact:
+    firewall_peer_public_ip: "{{ hostvars['node_a'].public_ip if inventory_hostname == 'node_b' else hostvars['node_b'].public_ip }}"
+  tags:
+    - firewall
+    - never
+
+- name: Требовать публичный IP пира
+  ansible.builtin.assert:
+    that:
+      - firewall_peer_public_ip | length > 0
+    fail_msg: "Задайте public_ip пира в inventory"
+  tags:
+    - firewall
+    - never
+
+- name: Проверить штамп подтверждения firewall
+  ansible.builtin.stat:
+    path: "{{ firewall_confirmed_stamp }}"
+  register: firewall_confirmed_stat
+  tags:
+    - firewall
+    - never
+
+- name: Требовать таймер отката firewall
+  ansible.builtin.assert:
+    that:
+      - firewall_rollback_minutes is defined
+      - (firewall_rollback_minutes | int) > 0
+    fail_msg: "Передайте -e firewall_rollback_minutes=10 (штамп подтверждения отсутствует)"
+  when: not firewall_confirmed_stat.stat.exists
+  tags:
+    - firewall
+    - never
+
+- name: Каталог состояния firewall
+  ansible.builtin.file:
+    path: "{{ firewall_state_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - firewall
+    - never
+
+- name: Установить at для таймера отката
+  ansible.builtin.apt:
+    name: at
+    state: present
+  when:
+    - not firewall_confirmed_stat.stat.exists
+    - firewall_rollback_minutes is defined
+  tags:
+    - firewall
+    - never
+
+- name: Снять предыдущее задание at
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ -f "{{ firewall_rollback_job_file }}" ]; then
+      job=$(cat "{{ firewall_rollback_job_file }}")
+      atrm "$job" 2>/dev/null || true
+    fi
+  args:
+    executable: /bin/bash
+  when:
+    - not firewall_confirmed_stat.stat.exists
+    - firewall_rollback_minutes is defined
+  changed_when: false
+  tags:
+    - firewall
+    - never
+
+- name: Запланировать откат ufw
+  ansible.builtin.shell: |
+    set -euo pipefail
+    echo "ufw disable" | at now + {{ firewall_rollback_minutes | int }} minutes
+    atq | tail -1 | awk '{print $1}' > "{{ firewall_rollback_job_file }}"
+  args:
+    executable: /bin/bash
+  when:
+    - not firewall_confirmed_stat.stat.exists
+    - firewall_rollback_minutes is defined
+  changed_when: true
+  tags:
+    - firewall
+    - never
+
+- name: IPv6 отключён в ufw
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: '^IPV6='
+    line: 'IPV6=no'
+  tags:
+    - firewall
+    - never
+
+- name: ip_forward для Docker
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.conf
+    regexp: '^net\.ipv4\.ip_forward='
+    line: net.ipv4.ip_forward=1
+  tags:
+    - firewall
+    - never
+
+- name: Применить ip_forward
+  ansible.builtin.command:
+    cmd: sysctl -w net.ipv4.ip_forward=1
+  changed_when: false
+  tags:
+    - firewall
+    - never
+
+- name: Политики ip6tables
+  ansible.builtin.shell: |
+    set -euo pipefail
+    ip6tables -P INPUT DROP
+    ip6tables -P FORWARD DROP
+    ip6tables -P OUTPUT ACCEPT
+    ip6tables -C INPUT -i lo -j ACCEPT 2>/dev/null || ip6tables -A INPUT -i lo -j ACCEPT
+    ip6tables -C INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+      ip6tables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+  args:
+    executable: /bin/bash
+  tags:
+    - firewall
+    - never
+
+- name: iptables-persistent для сохранения ip6tables
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  tags:
+    - firewall
+    - never
+
+- name: Разрешить SSH до включения ufw
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+  tags:
+    - firewall
+    - never
+
+- name: Правила ufw edge
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.from_ip | default(omit) }}"
+  loop:
+    - { port: "80", proto: tcp }
+    - { port: "443", proto: tcp }
+    - { port: "50000", proto: tcp }
+    - { port: "50000", proto: udp }
+    - { port: "8888", proto: tcp, from_ip: "172.17.0.0/16" }
+    - { port: "{{ wireguard_port | string }}", proto: udp, from_ip: "{{ firewall_peer_public_ip }}" }
+  when: firewall_profile == 'edge'
+  tags:
+    - firewall
+    - never
+
+- name: Правила ufw worker
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+  when: firewall_profile == 'worker'
+  tags:
+    - firewall
+    - never
+
+- name: WireGuard UDP только с адреса A
+  community.general.ufw:
+    rule: allow
+    port: "{{ wireguard_port | string }}"
+    proto: udp
+    from_ip: "{{ firewall_peer_public_ip }}"
+  when: firewall_profile == 'worker'
+  tags:
+    - firewall
+    - never
+
+- name: Проверить структуру after.rules
+  ansible.builtin.shell: |
+    set -euo pipefail
+    test -f /etc/ufw/after.rules
+    count_filter=$(grep -c '^\*filter' /etc/ufw/after.rules || true)
+    count_commit=$(grep -c '^COMMIT$' /etc/ufw/after.rules || true)
+    test "$count_filter" -eq 1
+    test "$count_commit" -eq 1
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags:
+    - firewall
+    - never
+
+- name: Цепочка DOCKER-USER в after.rules
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/after.rules
+    marker: "# {mark} oscript DOCKER-USER"
+    insertbefore: '^COMMIT$'
+    block: |
+      :DOCKER-USER - [0:0]
+      {{ lookup('template', 'docker_user_' + firewall_profile + '.j2') }}
+  notify: Reload ufw
+  tags:
+    - firewall
+    - never
+
+- name: Drop-in docker после ufw
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/ufw.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      After=ufw.service
+  notify:
+    - Systemd daemon-reload
+  tags:
+    - firewall
+    - never
+
+- name: Включить ufw
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+  tags:
+    - firewall
+    - never

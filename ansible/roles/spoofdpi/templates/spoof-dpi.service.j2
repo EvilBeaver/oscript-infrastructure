@@ -1,0 +1,12 @@
+[Unit]
+Description=SpoofDPI proxy for Jenkins
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart={{ spoofdpi_binary_path }} -listen-addr {{ spoofdpi_listen_ip }}:8888 --no-tui true --log-level warn
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

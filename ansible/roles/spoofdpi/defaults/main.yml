@@ -1,0 +1,8 @@
+---
+spoofdpi_version: "1.5.3"
+spoofdpi_release_tag: "v1.5.3"
+spoofdpi_archive: "spoofdpi_1.5.3_linux_x86_64.tar.gz"
+spoofdpi_download_url: "https://github.com/xvzc/SpoofDPI/releases/download/{{ spoofdpi_release_tag }}/{{ spoofdpi_archive }}"
+spoofdpi_sha256: "445515816efd8427f3bd809f8824d73c45596c0563330382bbf956aac3a7c4f2"
+spoofdpi_binary_path: /usr/local/bin/spoofdpi
+spoofdpi_expected_docker0: "172.17.0.1"
