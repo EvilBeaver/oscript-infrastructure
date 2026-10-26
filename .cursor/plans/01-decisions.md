@@ -38,7 +38,7 @@ Jenkins остаётся на A: ему нужен `/var/run/docker.sock`. Об�
 ## Как деплоим
 
 - Control node — нода B. Оператор заходит на B и запускает `ansible-playbook`. GitHub Actions в первой версии нет. Позже допустим self-hosted runner на B; runner в облаке GitHub control node не становится.
-- Ansible управляет обеими нодами от пользователя `deploy` (sudo без пароля, группа `docker`). На A система остаётся Ubuntu 16.04.7, Docker не переустанавливается. Один раз руками: Python 3.9 и учётка `deploy`. Дальше — роли.
+- Ansible управляет обеими нодами от пользователя `deploy` (sudo без пароля, группа `docker`). На A система остаётся Ubuntu 16.04.7, Docker не переустанавливается. Один раз руками — учётка `deploy`. Модули на A идут через уже установленный `/opt/python3/bin/python3` (CPython 3.12, вне `PATH`): ansible-core 2.21 на системном `/usr/bin/python3` 3.5.2 падает. Дальше — роли.
 - Ветка деплоя задаётся параметром `deploy_ref` (ветка, тег или SHA) репозитория `EvilBeaver/oscript-infrastructure`. Пока старый стек работает, это `master`. Весь рефакторинг (главы 3–5) ведётся в отдельной ветке `feature/multi-host`, `master` не трогается до остановки старого стека. Новый стек разворачивается с `deploy_ref=feature/multi-host`; в `master` ветка вливается после приёмки, и `deploy_ref` возвращается к `master`. Fork к деплою не подмешивается. Каталог на A — `/opt/oscript` на `origin/master`.
 - Секреты: файл `ansible-vault` лежит на B вне репозитория, на хостах Ansible рисует `.env`. HashiCorp Vault не ставим. Репозиторий публичный — в git нет ни открытых секретов, ни ciphertext.
 - Образы собираются на той ноде, где крутится сервис, из текущих каталогов (`web/nginx`, `jenkins`, `minio`, `S3`). Отдельный registry и перекладка дерева в `build/` / `assets/` не нужны.

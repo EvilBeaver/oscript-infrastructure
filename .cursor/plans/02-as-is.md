@@ -15,7 +15,7 @@
 | Пользователь людей | `andrei`: группы `sudo`, `docker` (GID 995), `powerusers`. Sudo с паролем, `NOPASSWD` нет |
 | Ещё в группе `docker` | `otymko`, `bonv`, `nixel`, `segate`. После Ansible ручные правки стека на A не делаются: роль `app` разойдётся с ними |
 | SSH | только ключи, `PermitRootLogin without-password`, пароль выключен. Конфиг старый (DSA host key, `ServerKeyBits 1024`) |
-| Python / git / OpenSSL | 3.5.2 / 2.7.4 / 1.0.2g. Компилятора нет, пока не поставлен `build-essential`. TLS до GitHub и PyPI с хоста открывается |
+| Python / git / OpenSSL | Системный `/usr/bin/python3` — 3.5.2, git 2.7.4, OpenSSL 1.0.2g. С 2026-10-26 для Ansible отдельно стоит CPython 3.12: `/opt/python3/bin/python3`. Каталог в `PATH` не входит, вызов только полным путём. Рядом `/opt/python3/bin/uv` (44 МБ, `root:root`). Компилятора нет, пока не поставлен `build-essential`. TLS до GitHub и PyPI с хоста открывается |
 | Сторонний агент | Yandex Unified Agent, `unified-agent.service`, слушает `*:16300` и `127.0.0.1:16301`. Снаружи закрыт файрволом. Роль `common` его не трогает и может лишь проверять, что сервис активен |
 
 Публичный адрес — `/32` на `eth0`, шлюз `10.0.0.1` onlink. Адрес в inventory вписывает оператор.

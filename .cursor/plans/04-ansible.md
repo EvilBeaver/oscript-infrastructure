@@ -24,7 +24,7 @@ ansible-playbook ansible/site.yml \
 | --- | --- | --- |
 | Роль в Ansible | группа `edge`, хост `node_a` | группа `worker`, хост `node_b`, `ansible_connection=local` |
 | Пользователь | `deploy` + `become: sudo` | `deploy` + `become: sudo` |
-| Интерпретатор | `/usr/local/bin/python3.9` | системный Python Ubuntu 24.04 |
+| Интерпретатор | `/opt/python3/bin/python3` (CPython 3.12, вне `PATH`) | системный Python Ubuntu 24.04 |
 | Каталог | `/opt/oscript` | `/opt/oscript` |
 | Код | `ansible.builtin.git`, `version: "{{ deploy_ref }}"` (ветка, тег или SHA; на время миграции `feature/multi-host`, потом `master`) | тот же приём |
 
@@ -41,7 +41,7 @@ worker
 inventory_is_example=false
 
 [edge]
-node_a ansible_host=<публичный IP A> public_ip=<публичный IP A> ansible_user=deploy ansible_python_interpreter=/usr/local/bin/python3.9 ansible_ssh_private_key_file=/home/deploy/.ssh/oscript_deploy
+node_a ansible_host=<публичный IP A> public_ip=<публичный IP A> ansible_user=deploy ansible_python_interpreter=/opt/python3/bin/python3 ansible_ssh_private_key_file=/home/deploy/.ssh/oscript_deploy
 
 [worker]
 node_b ansible_connection=local ansible_user=deploy public_ip=<публичный IP B>
@@ -64,15 +64,15 @@ Root по SSH на A для Ansible не открывают. Уже включё
 
 ## Один раз руками на A, до первого плейбука
 
-Системный Python 3.5 не трогать: на нём работает `apt`. Ansible-core 2.18 (и коллекция `community.docker` с модулем `docker_compose_v2`) на цели требует Python не ниже 3.8. Берём **3.9**: у Xenial OpenSSL 1.0.2, а Python 3.10 хочет OpenSSL не ниже 1.1.1.
+Системный `/usr/bin/python3` — 3.5.2, его не меняют: на нём работает `apt`. Модули ansible-core 2.21 на этом интерпретаторе падают.
+
+Для модулей на A уже стоит CPython 3.12: `/opt/python3/bin/python3`. Рядом `/opt/python3/bin/uv` (44 МБ, `root:root`). Каталог `/opt/python3/bin` в `PATH` не входит. Проверка и любой ручной запуск — полным путём:
 
 ```bash
-sudo apt-get install -y build-essential libssl-dev zlib1g-dev libffi-dev \
-  libbz2-dev libsqlite3-dev libreadline-dev
-# исходники CPython 3.9.x, затем:
-# ./configure --prefix=/usr/local && make -j"$(nproc)" && sudo make altinstall
-/usr/local/bin/python3.9 --version
+/opt/python3/bin/python3 --version
 ```
+
+Тот же путь записан в `ansible_python_interpreter` у `node_a`: образец inventory и [`ansible/host_vars/node_a.yml`](../../ansible/host_vars/node_a.yml). Автопоиск Ansible на Xenial выбирает `/usr/bin/python3`, поэтому интерпретатор задают явно, а не через `PATH`.
 
 Модуль `ansible.builtin.apt` на A не использовать: `python-apt` есть только для системного 3.5. Пакеты в ролях для A ставятся командой `apt-get … -y` с проверкой через `dpkg -s`. Модули `file`, `template`, `copy`, `systemd`, `git`, `command` и `community.docker` от `python-apt` не зависят.
 

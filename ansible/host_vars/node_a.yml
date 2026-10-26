@@ -1,4 +1,8 @@
 ---
+# CPython 3.12 вне PATH. ansible-core 2.21 на /usr/bin/python3 (3.5.2) падает.
+# Ручной вызов на A: /opt/python3/bin/python3 script.py
+ansible_python_interpreter: /opt/python3/bin/python3
+
 spoofdpi_enabled: true
 firewall_profile: edge
 otel_host_name: oscript.io

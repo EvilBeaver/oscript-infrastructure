@@ -9,7 +9,7 @@
 | 1 | git | С текущего `docker-compose.yml` снять второе описание того же однонодового стека: `compose/apps/*.yml`, `node_a.compose.yaml`, `node_b.compose.yaml`, оверлеи `colocated.yml` и `split.yml`, примеры env и `ops/dc.sh`. Корневой файл не трогать. `config` колокации (`node_a` + `colocated.yml`) совпадает с монолитом по сервисам, образам, переменным и томам | В ветке `feature/multi-host` два описания одного стека. Истина для прода — корневой файл из `master`. Модули не включены. `node_b.compose.yaml` и `split.yml` уже лежат в git, их не запускают |
 | 2 | git | В ту же ветку добавить `ansible.cfg` и каталог `ansible/` без секретов и без боевого inventory. `ansible-playbook --syntax-check` проходит. Плейбук не запускать: этап только кладёт роли, чтобы к подготовке B они уже были в `feature/multi-host` | Хосты те же, что после этапа 1. Роли не применены. Первый запуск плейбука — этап 4, на пустой ноде B. Ноду A этот этап не готовит |
 | 3 | нода A | Отдельное окно. Каталог перевести на `feature/multi-host`, корневой `docker-compose.yml` в этом коммите удалён. В `.env` записать `COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/colocated.yml` и поднять стек через `ops/dc.sh`. Оверлей колокации снова собирает весь сегодняшний стек на одной ноде, включая MinIO и LGTM. Туннель не нужен | Тот же стек на A, те же тома `os_*`, те же сайты. Способ сборки — модули. Контейнеры пересозданы из‑за меток Compose, имена `os_*_1` сохранены |
-| 4 | нода B | Сделать из пустой Ubuntu машину, с которой Ansible управляет обеими нодами. На A — Python 3.9. На B руками: Docker, `deploy`, ключ на A, клон, vault. Затем роли `common` и `firewall` (default deny) и замер `iperf3` | На B есть Docker, `deploy` и файрвол. Плейбук с B достаёт до A. Сервисы прода по-прежнему все на A |
+| 4 | нода B | Сделать из пустой Ubuntu машину, с которой Ansible управляет обеими нодами. На A интерпретатор уже есть: `/opt/python3/bin/python3`. На B руками: Docker, `deploy`, ключ на A, клон, vault. Затем роли `common` и `firewall` (default deny) и замер `iperf3` | На B есть Docker, `deploy` и файрвол. Плейбук с B достаёт до A через `/opt/python3/bin/python3`. Сервисы прода по-прежнему все на A |
 | 5 | A и B | Поднять WireGuard на обеих нодах (`10.9.0.1` и `10.9.0.2`). В тот же заход закрыть A файрволом, с таймером отката и уже открытым 22/tcp, и поправить bind SpoofDPI. Compose прода не трогать | Туннель пингуется. MinIO и Grafana ещё на A, публичные сайты обслуживаются как после этапа 3 |
 | 6 | копия на B | Пока писатели на A ещё работают, снять на B прогрев томов `os_minio_data` и `os_lgtm_data`, `pg_dump` базы OpenHub и копию `.env` с сертификатами. Вторую полную копию на диске A не размещать | На B лежит прогрев данных и dump, который открывается (`pg_restore --list`). Прод по-прежнему читает MinIO и Grafana с A |
 | 7 | A и B | Короткое окно. Остановить писателей, финальным rsync догнать копию остановленных томов, поднять MinIO, LGTM и hostmetrics на B. На A сменить оверлей на `split.yml`: nginx и OpenHub ходят на B по туннелю | Данные MinIO и Grafana на B. Сайт и Jenkins остаются на A. Пока тома A целы и на B нет новых записей, откат — вернуть `colocated.yml` и запустить minio и lgtm на A |
@@ -46,17 +46,47 @@
 
 ## Этап 3. Переключение входа на ноде A
 
-Отдельное окно после этапов 1 и 2. Туннель (этап 5) для него не нужен: колокация обходится без адресов `10.9.0.x`.
+Отдельное окно после этапов 1 и 2 и после коммита 3 в `feature/multi-host` ([глава 5](05-repo-refactor.md)): в этой ветке корневого `docker-compose.yml` уже нет. Туннель (этап 5) для него не нужен: колокация обходится без адресов `10.9.0.x`. Роль `app` на A ещё не прогоняют. Стек переключают руками из `/opt/oscript` от пользователя `deploy`.
 
-На A каталог переводят на `feature/multi-host` и поднимают через `ops/dc.sh`. Корневого `docker-compose.yml` в этом коммите уже нет. В `.env` записывают `COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/colocated.yml`. Тома те же. Контейнеры пересоздаются из‑за меток Compose и сохраняют имена `os_*_1` за счёт явного `container_name`. Состав коммита — глава 5, коммит 3.
+Окно короткое. Первый `up` из модулей пересоздаёт все контейнеры: меняются метки Compose и рабочий каталог. Тома `os_*` остаются, имена контейнеров — `os_*_1` за счёт явного `container_name`. Страницу 503 не включают. Проверки StatusCake на время рестарта могут коротко уйти в отказ; паузу ставят в их кабинете по желанию, на ноде агента нет.
 
-Готово, когда те же сайты открываются из модульной колокации, тома по-прежнему `os_*`.
+До окна стек ещё на `master` и поднят v1 (`/usr/local/bin/docker-compose`):
+
+1. В `/opt/oscript` от `deploy` дерево отслеживаемых файлов чистое, `HEAD` совпадает с `origin/master`. `.env` в git не входит, его не откатывают. Если есть свои коммиты или правки отслеживаемых файлов, окно не начинают и дерево не затирают.
+2. `git fetch origin`. На `origin/feature/multi-host` есть `ops/dc.sh`, `compose/node_a.compose.yaml` и `compose/overrides/colocated.yml`, корневого `docker-compose.yml` нет. Если корневой файл на ветке ещё лежит, это ещё не коммит 3: каталог на ноде не переключают.
+3. `docker compose version` — плагин v2.40.3 из [главы 2](02-as-is.md). Плагин на A не обновляют. Если `docker compose` не отвечает, окно не начинают.
+4. Снять снимок, с которым сверяются после `up`: `docker ps --format '{{.Names}} {{.Status}}'` и `docker volume ls`. Префикс томов — `os_`.
+
+Окно:
+
+1. От `deploy`: `git checkout feature/multi-host`. После checkout корневого `docker-compose.yml` в каталоге нет. Работающие контейнеры checkout не останавливает. Если checkout отказывается из‑за локальных файлов, окно останавливают и к стеку ничего не применяют.
+2. В `.env` дописать `COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/colocated.yml`. Строку `COMPOSE_PROJECT_NAME=os` оставляют как есть. Права файла остаются `0640`, владелец `deploy`, группа `docker`.
+3. Проверка до `up`. Её делает плагин v2 через обёртку, которая подставляет `--project-directory` и `--env-file` и читает `COMPOSE_FILE` из `.env`:
+
+```bash
+./ops/dc.sh config
+```
+
+В выводе есть `minio` и `lgtm`, имя проекта `os`, тома с префиксом `os_`, у сервисов `container_name` вида `os_<сервис>_1`. Источники bind-mount лежат под `/opt/oscript/`, кроме `/var/run/docker.sock` и корня хоста у hostmetrics. Адресов `10.9.0.x` в выводе нет. Если `config` падает или в нём нет `minio` и `lgtm`, `up` не запускают.
+4. `./ops/dc.sh up -d`. Флага `--remove-orphans` здесь нет: `minio` и `lgtm` входят в колокацию, его ставят на этапе 7, когда эти сервисы уходят на B. Команд `down` и `down -v` нет. Бинарь v1 модульные файлы не читает; этот стек им больше не поднимают.
+5. Сверить `docker ps` и `docker volume ls` со снимком до окна. На месте `os_nginx_1`, `os_site_1`, `os_jenkins_1`, `os_certbot_1`, `os_tg_bot_1`, `os_s3-sync_1`, `os_minio_1`, `os_openhub_1`, `os_openhub_db_1`, `os_lgtm_1`, `os_hostmetrics_1`. Томов с префиксом `oscript_` нет. Остановленные контейнеры старого хаба, если они ещё есть, не удаляют: их снимают по разделу «Старый хаб».
+
+Готово, когда из этой сборки открываются `oscript.io`, `hub.oscript.io`, `s3.oscript.io`, `grafana.oscript.io` и `build.oscript.io`, тома по-прежнему `os_*`, MinIO и LGTM отвечают локально на A.
+
+### Откат этапа 3
+
+Его делают, пока тома не удаляли и имя проекта в `.env` остаётся `os`.
+
+1. `down -v` не выполнять.
+2. От `deploy` в `/opt/oscript`: `git checkout master`. Каталог снова на `origin/master`, корневой `docker-compose.yml` на месте.
+3. Убрать из `.env` строку `COMPOSE_FILE`. Её читают и v1, и v2; оставшаяся строка указывает на файлы, которых на `master` нет, и прежняя команда упадёт.
+4. Поднять стек прежней командой из того же каталога: `docker-compose up -d` (`/usr/local/bin/docker-compose`, v1.23.2). Тома те же.
 
 ## Этап 4. Нода B как машина
 
 Ждёт этап 2: роли уже в git. Переключение входа на A (этап 3) можно закончить раньше или сразу после; окно (этап 7) ждёт оба.
 
-1. На A поставить Python 3.9 в `/usr/local/bin/python3.9`. Команды — [глава 4](04-ansible.md), «Один раз руками на A». Пользователь `deploy` на A уже есть. Системный Python 3.5 не заменяют.
+1. На A интерпретатор Ansible уже стоит: `/opt/python3/bin/python3` (CPython 3.12, вне `PATH`). Проверка — [глава 4](04-ansible.md), «Один раз руками на A»: `/opt/python3/bin/python3 --version`. Пользователь `deploy` на A уже есть. Системный `/usr/bin/python3` (3.5.2) не меняют.
 2. На B один раз руками, в порядке главы 4: Docker, пользователь `deploy` (sudo без пароля, группа `docker`), ключ на A, клон в `/opt/oscript`, Ansible и коллекции, каталог `/opt/oscript-secrets/` с vault. Проверка с B: `ansible all -m ping`.
 3. Прогнать роли `common` и `firewall` (default deny) на B. Диск под будущие тома проверить отдельно.
 4. Снять `iperf3` между нодами. Ориентир для спокойного rsync — от 200 Мбит/с. Данных около 5 ГБ, окно остаётся коротким и при меньшей скорости; цифру фиксируют заранее.
@@ -177,7 +207,7 @@ CoreDNS, третья нода, registry, публичный Portainer — то�
 | ufw не закрывает порты контейнеров | bind на адрес туннеля и `DOCKER-USER`, проверка `nmap` |
 | Секрет попал в публичный git | vault и inventory вне репо, gitignore, просмотр диффа |
 | Единственная копия vault на B | копия файла и пароля у оператора |
-| A на Ubuntu 16.04 без обновлений безопасности | принято; Docker не переустанавливаем, Ansible ходит через отдельный Python 3.9 |
+| A на Ubuntu 16.04 без обновлений безопасности | принято; Docker не переустанавливаем, Ansible ходит через `/opt/python3/bin/python3` (3.12). Системный 3.5.2 для модулей не используют: ansible-core 2.21 на нём падает |
 | SpoofDPI слушает все интерфейсы | роль переводит bind на docker0 и это проверяется `ss` |
 | Файрвол закрыл SSH | 22/tcp до включения, таймер отката |
 | Пустая группа edge в inventory | шаблон пира WireGuard без хаба не рендерится |
@@ -192,7 +222,7 @@ CoreDNS, третья нода, registry, публичный Portainer — то�
 - [ ] Образы и env openhub, nginx, hostmetrics, lgtm совпадают с боевыми, openhub остаётся 0.21.0
 - [ ] `container_name: os_<сервис>_1` явно задан во всех модулях `compose/apps/*.yml`
 - [ ] `name: os`, bind-источники под `/opt/oscript`
-- [ ] Ansible: корневой `ansible.cfg`, control node B, на обеих нодах пользователь `deploy`, на A ещё Python 3.9, пакеты через `apt-get`, WireGuard с handler, app через git (`version: "{{ deploy_ref }}"`) и `project_name`
+- [ ] Ansible: корневой `ansible.cfg`, control node B, на обеих нодах пользователь `deploy`, на A интерпретатор `/opt/python3/bin/python3`, пакеты через `apt-get`, WireGuard с handler, app через git (`version: "{{ deploy_ref }}"`) и `project_name`
 - [ ] Роли `firewall` и `spoofdpi` описаны кодом по эталону главы 2
 - [ ] В репо нет секретов и боевого inventory; есть примеры без значений
 - [ ] Тесты nginx и monitoring зелёные
