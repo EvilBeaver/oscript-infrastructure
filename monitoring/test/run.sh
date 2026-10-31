@@ -1,7 +1,7 @@
 #!/bin/sh
 # Интеграционный тест метрик хоста. Нужен docker compose v2, Linux-хост с Docker.
 #
-# Проверяет, что сервис hostmetrics из docker-compose.yml:
+# Проверяет, что сервис hostmetrics из compose/apps/hostmetrics.yml:
 #   1. шлёт по OTLP метрики хоста: CPU, загрузка, память, диски, файловые системы, сеть;
 #   2. помечает их host.name из OTEL_HOST_NAME;
 #   3. не тащит виртуальные ФС (overlay-слои Docker);
@@ -10,7 +10,7 @@ set -eu
 cd "$(dirname "$0")"
 
 DC="docker compose"
-# extends читает корневой docker-compose.yml целиком, а там есть обязательные переменные
+# extends читает модуль hostmetrics; обязательных переменных lgtm/openhub там нет.
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-test}"
 export GRAFANA_DB_PASSWORD="${GRAFANA_DB_PASSWORD:-test}"
 

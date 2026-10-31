@@ -1,46 +1,67 @@
 # AGENTS.md
 
-Инфраструктура сайта [oscript.io](https://oscript.io) и поддоменов `*.oscript.io` — один сервер, один `docker-compose.yml`.
+Инфраструктура [oscript.io](https://oscript.io) и поддоменов `*.oscript.io` — две ноды (A — edge, B — worker), один каталог стека `/opt/oscript`, сборка через модульный Compose и `ops/dc.sh`. Подробный порядок работ — [`.cursor/plans/README.md`](.cursor/plans/README.md).
 
 ## Стек
 
-Docker Compose · nginx (образ с `ngx_otel_module`) · Let's Encrypt/certbot · PostgreSQL · MinIO · [OpenHub](https://github.com/Segate-ekb/openhub) · Grafana otel-lgtm · Jenkins · OneScript (бот).
+Docker Compose v2 · nginx (образ с `ngx_otel_module`) · Let's Encrypt/certbot · PostgreSQL · MinIO · [OpenHub](https://github.com/Segate-ekb/openhub) · Grafana otel-lgtm · Jenkins · OneScript (бот) · WireGuard между нодами.
 
-Секреты и пароли — в `.env` в корне (не в git). Образцы: [`openhub.env.example`](openhub.env.example), [`minio/.env.example`](minio/.env.example).
+Секреты — в `.env` в корне стека (не в git) и в Ansible vault на B (`/opt/oscript-secrets/`). Образцы имён переменных: [`env/node_a.env.example`](env/node_a.env.example), [`env/node_b.env.example`](env/node_b.env.example), [`openhub.env.example`](openhub.env.example), [`minio/.env.example`](minio/.env.example).
+
+## Запуск compose
+
+На каждой ноде из `/opt/oscript`:
+
+- в `.env`: `COMPOSE_PROJECT_NAME=os` и `COMPOSE_FILE=…` (на A до сплита: `compose/node_a.compose.yaml:compose/overrides/colocated.yml`, после сплита — `…/split.yml`, на B: `compose/node_b.compose.yaml`);
+- команды: `./ops/dc.sh config`, `./ops/dc.sh up -d`, `./ops/dc.sh build nginx` и т.д.
+
+Корневого `docker-compose.yml` нет. На A после окна переключения бинарь `docker-compose` v1 не используется.
 
 ## Карта сервисов
 
-| Сервис compose | Назначение | Домен |
+| Сервис compose | Назначение | Домен / доступ |
 | --- | --- | --- |
-| `nginx` | reverse proxy, TLS, OTel, rate limit | все публичные домены |
+| `nginx` | reverse proxy, TLS, OTel, rate limit | все публичные домены (на A) |
 | `site` | основной сайт | `oscript.io`, `www.oscript.io` |
 | `openhub` | хаб пакетов | `hub.oscript.io` |
 | `jenkins` | CI | `build.oscript.io` |
-| `minio` | S3-хранилище артефактов | `s3.oscript.io` |
+| `minio` | S3-хранилище артефактов | `s3.oscript.io` (после сплита — на B, прокси с A) |
 | `lgtm` | Grafana, Tempo, Loki, Prometheus | `grafana.oscript.io` |
-| `hostmetrics` | метрики хоста и контейнеров → `lgtm` | только localhost OTLP |
+| `hostmetrics` | метрики хоста и контейнеров → OTLP | `network_mode: host` |
 | `certbot` | автообновление сертификатов | — |
 | `s3-sync` | зеркалирование `web_content` во внешний S3 | — |
 | `tg_bot` | Telegram-бот | — |
 
-Общий том `web_content` — статика сайта. Файлы OpenHub — бакет `openhub` в MinIO. В томе может оставаться каталог прежнего хаба `hub.oscript.io`; к сайту и к бакету он не относится и чистится отдельно, когда архив больше не нужен.
-
 ## Структура репозитория
 
 ```
-docker-compose.yml          # весь стек
-web/nginx/                  # образ nginx, sites-enabled, conf.d, snippets, robots, тесты
-web/certbot/                # сертификаты (gitignore)
-monitoring/                 # дашборды Grafana, otelcol-*, роль grafana_ro, тесты
-minio/                      # образ MinIO, bootstrap учёток и бакетов
-jenkins/                    # образ Jenkins (mono, docker, onescript)
-openhub-migration/          # запись о разовом переносе метаданных в OpenHub
-S3/                         # rclone-синхронизация во внешнее хранилище
-bot/                        # исходники Telegram-бота (образ — внешний)
-docker/                     # Dockerfile для сборок в Jenkins
+compose/apps/               # тело сервисов
+compose/node_a.compose.yaml # сборка A (без minio/lgtm в базе)
+compose/node_b.compose.yaml # minio, lgtm, hostmetrics на B
+compose/overrides/          # colocated.yml | split.yml
+env/                        # образцы .env по нодам
+ops/dc.sh                   # обёртка docker compose
+ansible/                    # роли, site.yml (inventory и vault вне git)
+web/nginx/                  # образ nginx, sites-enabled, тесты
+monitoring/                 # дашборды, otelcol-*, тест hostmetrics
+minio/  jenkins/  S3/  bot/  docker/
 ```
 
-Конфиг nginx собирается в образ (`web/nginx/Dockerfile`); после правок `sites-enabled` или `conf.d` — пересборка `nginx`.
+Конфиг nginx в образе (`web/nginx/Dockerfile`); после правок `sites-enabled` или `conf.d` — `./ops/dc.sh build nginx && ./ops/dc.sh up -d nginx`.
+
+## Ansible
+
+Control node — **нода B**, пользователь `deploy`. Плейбук: `ansible/site.yml`, конфиг — корневой `ansible.cfg`. Боевой `ansible/inventory.ini` и `vault.yml` на B, в git только образцы.
+
+```bash
+cd /opt/oscript
+ansible-playbook ansible/site.yml \
+  -e @/opt/oscript-secrets/vault.yml \
+  --vault-password-file /opt/oscript-secrets/vault_pass \
+  --tags common,never
+```
+
+Роли, меняющие хост, помечены тегом `never` — указывайте его вместе с ролью (`wg`, `firewall`, `app`, …). На A модули Ansible — `/opt/python3/bin/python3`. Подробности — [`.cursor/plans/04-ansible.md`](.cursor/plans/04-ansible.md).
 
 ## Типовые задачи
 
@@ -48,51 +69,46 @@ docker/                     # Dockerfile для сборок в Jenkins
 
 1. Файлы: `web/nginx/sites-enabled/`, `web/nginx/conf.d/`, `web/nginx/snippets/`, `web/nginx/robots/`.
 2. Проверка: `./web/nginx/test/run.sh` (нужен `docker compose` v2).
-3. На сервере: `docker-compose build nginx && docker-compose up -d nginx`.
+3. На сервере: `./ops/dc.sh build nginx && ./ops/dc.sh up -d nginx`.
 
-Новый домен и сертификат: `./add-letsencrypt-domain.sh <домен>` — добавить `server`-блок в `sites-enabled` до запуска скрипта.
+Новый домен: блок в `sites-enabled/`, затем `./add-letsencrypt-domain.sh <домен>`.
 
 ### OpenHub
 
-Переменные окружения хаба в `docker-compose.yml` (секция `openhub`). Имена ключей: точка настройки → подчёркивание, внутреннее `_` удваивается (`OSHUB_INSTANCE_TRUSTED__PROXIES`).
+Переменные — в `.env` и `compose/apps/openhub.yml` (имена по правилу хаба: точка → `_`, внутреннее `_` удваивается). Первый запуск: образцы env → DNS → certbot → MinIO → роль `grafana_ro` → `./ops/dc.sh up -d openhub` → `/setup`.
 
-Первый запуск: переменные из `openhub.env.example` → DNS → сертификаты → бакет и учётка в MinIO → роль `grafana_ro` (`monitoring/grafana-db-role.sql`) → `docker-compose up -d openhub` → `/setup` для первого админа.
-
-Даты и метаданные в OpenHub уже перенесены. Запись о переносе: [`openhub-migration/README.md`](openhub-migration/README.md). Сервиса-источника в compose нет.
+Метаданные opm-hub уже перенесены: [`openhub-migration/README.md`](openhub-migration/README.md).
 
 ### Мониторинг
 
 - Дашборды: `monitoring/openhub-dashboard.json`, `monitoring/openhub-reference-dashboard.json`.
-- Источник Grafana для каталога хаба: `monitoring/grafana-datasource-openhub-db.yaml` (роль `grafana_ro`, пароль `GRAFANA_DB_PASSWORD`).
-- Трассировка nginx: `web/nginx/conf.d/otel.conf`; метрики nginx: `monitoring/otelcol-nginx.yaml`.
+- Datasource каталога: `monitoring/grafana-datasource-openhub-db.yaml`.
+- Трассировка nginx: `web/nginx/conf.d/otel.conf`; метрики nginx: `monitoring/otelcol-nginx.yaml`, `NGINX_STATUS_ENDPOINT` в `.env` на B после сплита.
 - Метрики хоста: `monitoring/otelcol-host.yaml`, сервис `hostmetrics`.
 - Проверка: `./monitoring/test/run.sh`.
 
-Схему базы OpenHub меняет сам хаб — после обновления с переименованием таблиц/колонок править SQL в дашбордах и `monitoring/grafana-db-role.sql`.
-
 ### MinIO
 
-Bootstrap при старте: `minio/bootstrap.sh`. Политики: `minio/policies/`. Smoke-тест: `minio/test/smoke.sh`.
+Bootstrap: `minio/bootstrap.sh`. Политики: `minio/policies/`. Smoke: `minio/test/smoke.sh`. Образ собирается из `minio/Dockerfile` (бинарники с GitHub Releases).
 
 ### hub.oscript.io — robots и лимиты
 
-- `web/nginx/robots/hub.oscript.io.txt` — отдаёт nginx, не хаб.
+- `web/nginx/robots/hub.oscript.io.txt` — отдаёт nginx.
 - Лимиты: `web/nginx/conf.d/hub-limits.conf`, `web/nginx/snippets/hub.oscript.io-limits.conf`.
-- HTTP push (`/push`) на hub идёт без редиректа на https — см. `hub.oscript.io` в `sites-enabled`.
+- HTTP `/push` без редиректа на https — см. `hub.oscript.io` в `sites-enabled`.
 
 ## Ограничения
 
-- На сервере — `docker-compose` (v1 CLI), в тестах — `docker compose` v2.
-- `hostmetrics` в `network_mode: host`; OTLP `lgtm` опубликован на `127.0.0.1:4317`.
-- `Vagrantfile` и `init.sh` — устаревший локальный стенд, не отражают боевой стек.
-- `local_backup.sh` — ручной бэкап тома `web_content`, пути захардкожены.
+- `hostmetrics` — `network_mode: host`; OTLP на A в колокации — `127.0.0.1:4317`, после сплита — `10.9.0.2:4317`.
+- `local_backup.sh` — только `web_content`, не рассчитан на две ноды.
+- На сервере A — Ubuntu 16.04, Docker без переустановки; Ansible на A только через `/opt/python3/bin/python3`.
 
 ## Указатели
 
 | Тема | Документ |
 | --- | --- |
-| запись о переносе метаданных в OpenHub | [`openhub-migration/README.md`](openhub-migration/README.md) |
-| трассировка, robots, rate limit hub | комментарии в `web/nginx/conf.d/otel.conf`, `hub-limits.conf`; тест `web/nginx/test/run.sh` |
-| справочный дашборд и роль БД | `monitoring/grafana-db-role.sql`, `monitoring/grafana-datasource-openhub-db.yaml` |
-| переменные OpenHub | `openhub.env.example`, секция `openhub` в `docker-compose.yml` |
-| переменные MinIO / Jenkins S3 | `minio/.env.example` |
+| порядок миграции на две ноды | [`.cursor/plans/README.md`](.cursor/plans/README.md) |
+| перенос метаданных в OpenHub | [`openhub-migration/README.md`](openhub-migration/README.md) |
+| OTel, robots, rate limit hub | `web/nginx/conf.d/otel.conf`, `hub-limits.conf`; `./web/nginx/test/run.sh` |
+| роль БД Grafana | `monitoring/grafana-db-role.sql`, `monitoring/grafana-datasource-openhub-db.yaml` |
+| переменные OpenHub / MinIO | `openhub.env.example`, `env/node_*.env.example`, `minio/.env.example` |

@@ -49,18 +49,20 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-if docker compose version >/dev/null 2>&1; then
+if [ -x "./ops/dc.sh" ]; then
+  compose="./ops/dc.sh"
+elif docker compose version >/dev/null 2>&1; then
   compose="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
   compose="docker-compose"
 else
-  echo 'Не найден ни docker compose, ни docker-compose' >&2
+  echo 'Не найден ops/dc.sh, docker compose и docker-compose' >&2
   exit 1
 fi
 
 for service in opm_hub_db openhub_db; do
   if [ -z "$($compose ps -q "$service")" ]; then
-    echo "Сервис $service не поднят: сначала docker-compose up -d $service" >&2
+    echo "Сервис $service не поднят: сначала ./ops/dc.sh up -d $service" >&2
     exit 1
   fi
 done

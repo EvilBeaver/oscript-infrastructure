@@ -15,9 +15,11 @@
 
 ## Статус
 
-Решения приняты. На ноде A каталог стека уже `/opt/oscript`: владелец `deploy`, группа `docker`, в `.env` стоит `COMPOSE_PROJECT_NAME=os`, тома `os_*`, стек поднят корневым `docker-compose.yml` с `origin/master`.
+Решения приняты. На ноде A каталог стека — `/opt/oscript`, стек ещё на `origin/master` и корневом `docker-compose.yml` (окно этапа 3 не открыто).
 
-В ветке `feature/multi-host` готовы этапы 1–2 git: модульный `compose/` и каркас `ansible/` (роли, `ansible.cfg`, образцы без секретов). Плейбук на хостах не запускали. Проверка: `./ansible/test/run.sh`.
+В ветке `feature/multi-host`: этапы 1–2 (модули, Ansible), **коммит 3** — модульный вход (`ops/dc.sh`, без корневого compose), образ MinIO собирается с GitHub Releases. Плейбук на хостах не запускали. Проверки: `./ansible/test/run.sh`, `./web/nginx/test/run.sh`, `./monitoring/test/run.sh`.
+
+**Дальше оператору:** окно этапа 3 на A (см. глава 6), затем этап 4 — подготовка B и первые роли `common`/`firewall`.
 
 ## Перед первой правкой на хостах
 

@@ -1,5 +1,5 @@
 # Оверлей к конфигу коллектора grafana/otel-lgtm: метрики nginx из stub_status
-# (web/nginx/sites-enabled/status). Подключается через OTELCOL_EXTRA_ARGS в docker-compose.yml.
+# (web/nginx/sites-enabled/status). Подключается через OTELCOL_EXTRA_ARGS в compose/apps/lgtm.yml.
 #
 # Коллектор сливает конфиги, но списки заменяет целиком, поэтому receivers пайплайна
 # metrics повторяют дефолт образа (docker/otelcol-config.yaml в grafana/docker-otel-lgtm

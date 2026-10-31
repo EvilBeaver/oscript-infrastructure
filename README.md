@@ -1,69 +1,64 @@
 # Инфраструктура oscript.io
 
-Репозиторий с конфигурацией и артефактами для развёртывания сервисов экосистемы [OneScript](https://oscript.io) на одном сервере. Всё поднимается через Docker Compose.
+Конфигурация и артефакты для сервисов экосистемы [OneScript](https://oscript.io). Прод — **две ноды** (A — публичный edge, B — MinIO, Grafana, hostmetrics), каталог стека `/opt/oscript`, оркестрация — **Docker Compose v2** через [`ops/dc.sh`](ops/dc.sh).
 
-## Что здесь разворачивается
+Пошаговый план миграции и Ansible — [`.cursor/plans/README.md`](.cursor/plans/README.md). Краткая справка для агентов — [`AGENTS.md`](AGENTS.md).
+
+## Публичные сервисы
 
 | Домен | Сервис |
 | --- | --- |
-| [oscript.io](https://oscript.io) | Основной сайт проекта |
-| [hub.oscript.io](https://hub.oscript.io) | Хаб пакетов [OpenHub](https://github.com/Segate-ekb/openhub) |
-| [build.oscript.io](https://build.oscript.io) | Jenkins — сборки и CI |
-| [s3.oscript.io](https://s3.oscript.io) | MinIO — S3-совместимое хранилище артефактов |
-| [grafana.oscript.io](https://grafana.oscript.io) | Мониторинг (Grafana, метрики, логи, трассы) |
+| [oscript.io](https://oscript.io) | Основной сайт |
+| [hub.oscript.io](https://hub.oscript.io) | [OpenHub](https://github.com/Segate-ekb/openhub) |
+| [build.oscript.io](https://build.oscript.io) | Jenkins |
+| [s3.oscript.io](https://s3.oscript.io) | MinIO (после сплита — данные на B) |
+| [grafana.oscript.io](https://grafana.oscript.io) | Grafana, метрики, логи, трассы |
 
-## Стек технологий
-
-- **Оркестрация** — Docker Compose
-- **Веб-сервер** — nginx (TLS, reverse proxy, OpenTelemetry)
-- **Сертификаты** — Let's Encrypt (certbot)
-- **Базы данных** — PostgreSQL
-- **Хранилище** — MinIO (локально) и внешний S3 (синхронизация через rclone)
-- **Хаб пакетов** — OpenHub
-- **CI** — Jenkins
-- **Наблюдаемость** — Grafana otel-lgtm, OpenTelemetry Collector
-
-## Структура репозитория
+## Структура
 
 ```
-docker-compose.yml       — описание всего стека
-web/nginx/               — конфигурация и образ nginx
-web/certbot/             — сертификаты (не в git)
-monitoring/              — дашборды Grafana, конфиги коллекторов
-minio/                   — образ MinIO и начальная настройка
-jenkins/                 — образ Jenkins
-openhub-migration/       — запись о разовом переносе метаданных в OpenHub (сервис-источник снят)
-S3/                      — синхронизация файлов во внешнее хранилище
-bot/                     — исходники Telegram-бота
+compose/          — модульный стек (node_a, node_b, overrides)
+env/              — образцы .env (node_a, node_b)
+ops/dc.sh         — единая команда compose на нодах
+ansible/          — роли и site.yml (inventory и vault — на B, вне git)
+web/nginx/        — reverse proxy и TLS
+monitoring/       — observability
+minio/ jenkins/ S3/ bot/
 ```
 
-Секреты (пароли, ключи API) задаются в файле `.env` в корне репозитория — он не коммитится. Образцы переменных: [`openhub.env.example`](openhub.env.example), [`minio/.env.example`](minio/.env.example).
+Секреты — в `.env` (не в git) и Ansible vault. Образцы: [`env/node_a.env.example`](env/node_a.env.example), [`openhub.env.example`](openhub.env.example), [`minio/.env.example`](minio/.env.example).
 
-## Быстрый старт
-
-На сервере с установленными Docker и docker-compose:
+## Запуск на ноде
 
 ```bash
-# 1. Создать .env по образцам openhub.env.example и minio/.env.example
-# 2. Выпустить сертификаты (первый раз)
-./init-letsencrypt.sh
-
-# 3. Поднять стек
-docker-compose up -d
+# .env: COMPOSE_PROJECT_NAME=os и COMPOSE_FILE=… (см. env/*.env.example)
+./ops/dc.sh config
+./ops/dc.sh up -d
 ```
 
-Для добавления нового домена: создать конфиг в `web/nginx/sites-enabled/`, затем `./add-letsencrypt-domain.sh <домен>`.
+Первые сертификаты: `./init-letsencrypt.sh`. Новый домен: конфиг в `web/nginx/sites-enabled/`, затем `./add-letsencrypt-domain.sh <домен>`.
+
+## Ansible (control node — нода B)
+
+```bash
+cd /opt/oscript
+ansible-playbook ansible/site.yml \
+  -e @/opt/oscript-secrets/vault.yml \
+  --vault-password-file /opt/oscript-secrets/vault_pass \
+  --tags common,never,firewall
+```
+
+Проверка каркаса без хостов: `./ansible/test/run.sh`. Ручная подготовка B — глава 4 в [`.cursor/plans/04-ansible.md`](.cursor/plans/04-ansible.md).
 
 ## Тесты
 
-Интеграционные проверки конфигурации (нужен Docker Compose v2):
-
 ```bash
-./web/nginx/test/run.sh      # nginx, OTel, robots.txt, rate limits
-./monitoring/test/run.sh     # метрики хоста
+./web/nginx/test/run.sh
+./monitoring/test/run.sh
+./ansible/test/run.sh
 ```
 
 ## Дополнительно
 
-- **Перенос метаданных в OpenHub** — уже выполнен, запись в [`openhub-migration/README.md`](openhub-migration/README.md)
-- **Настройка OpenHub с нуля** — переменные в `openhub.env.example`, первый администратор через `/setup` на hub.oscript.io
+- Перенос метаданных opm-hub → OpenHub — [`openhub-migration/README.md`](openhub-migration/README.md)
+- OpenHub с нуля — `openhub.env.example`, первый админ через `/setup` на hub.oscript.io

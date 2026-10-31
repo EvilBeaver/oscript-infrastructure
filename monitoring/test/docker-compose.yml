@@ -1,6 +1,6 @@
 # Тестовый стенд метрик хоста. Запуск: ./monitoring/test/run.sh
 #
-#   hostmetrics — боевой сервис из корневого docker-compose.yml (extends): тот же образ,
+#   hostmetrics — боевой сервис из compose/apps/hostmetrics.yml (extends): тот же образ,
 #                 монтирование хоста, network_mode и конфиг; переопределены только адрес
 #                 экспорта и имя хоста
 #   sink        — коллектор вместо lgtm: принимает OTLP на 127.0.0.1:14317 и печатает метрики в лог
@@ -10,7 +10,7 @@ name: hostmetrics-test
 services:
   hostmetrics:
     extends:
-      file: ../../docker-compose.yml
+      file: ../../compose/apps/hostmetrics.yml
       service: hostmetrics
     environment:
       - OTLP_ENDPOINT=127.0.0.1:14317

@@ -67,7 +67,7 @@
 ./ops/dc.sh config
 ```
 
-В выводе есть `minio` и `lgtm`, имя проекта `os`, тома с префиксом `os_`, у сервисов `container_name` вида `os_<сервис>_1`. Источники bind-mount лежат под `/opt/oscript/`, кроме `/var/run/docker.sock` и корня хоста у hostmetrics. Адресов `10.9.0.x` в выводе нет. Если `config` падает или в нём нет `minio` и `lgtm`, `up` не запускают.
+В выводе есть `minio` и `lgtm`, имя проекта `os`, тома с префиксом `os_`, у сервисов `container_name` вида `os_<сервис>_1`. Источники bind-mount лежат под `/opt/oscript/`, кроме `/var/run/docker.sock` и корня хоста у hostmetrics. В `ports`, `extra_hosts` и `dns` адресов `10.9.0.x` нет (в `environment`, например `NO_PROXY`, они допустимы). Если `config` падает или в нём нет `minio` и `lgtm`, `up` не запускают.
 4. `./ops/dc.sh up -d`. Флага `--remove-orphans` здесь нет: `minio` и `lgtm` входят в колокацию, его ставят на этапе 7, когда эти сервисы уходят на B. Команд `down` и `down -v` нет. Бинарь v1 модульные файлы не читает; этот стек им больше не поднимают.
 5. Сверить `docker ps` и `docker volume ls` со снимком до окна. На месте `os_nginx_1`, `os_site_1`, `os_jenkins_1`, `os_certbot_1`, `os_tg_bot_1`, `os_s3-sync_1`, `os_minio_1`, `os_openhub_1`, `os_openhub_db_1`, `os_lgtm_1`, `os_hostmetrics_1`. Томов с префиксом `oscript_` нет. Остановленные контейнеры старого хаба, если они ещё есть, не удаляют: их снимают по разделу «Старый хаб».
 

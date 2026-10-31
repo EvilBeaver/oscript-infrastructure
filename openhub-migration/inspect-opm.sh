@@ -12,12 +12,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if docker compose version >/dev/null 2>&1; then
+if [ -x "./ops/dc.sh" ]; then
+  compose="./ops/dc.sh"
+elif docker compose version >/dev/null 2>&1; then
   compose="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
   compose="docker-compose"
 else
-  echo 'Не найден ни docker compose, ни docker-compose' >&2
+  echo 'Не найден ops/dc.sh, docker compose и docker-compose' >&2
   exit 1
 fi
 

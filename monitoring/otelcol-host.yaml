@@ -1,4 +1,4 @@
-# Метрики хоста и контейнеров → lgtm по OTLP/gRPC. Сервис hostmetrics в docker-compose.yml.
+# Метрики хоста и контейнеров → lgtm по OTLP/gRPC. Сервис hostmetrics в compose/apps/hostmetrics.yml.
 # Корень хоста смонтирован в /hostfs; root_path направляет туда чтение /proc и /sys,
 # иначе receiver видел бы контейнер, а не хост.
 receivers:

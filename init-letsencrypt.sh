@@ -1,9 +1,13 @@
 #!/bin/bash
 
-if ! [ -x "$(command -v docker-compose)" ]; then
-  echo 'Error: docker-compose is not installed.' >&2
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+
+if [ ! -x "$ROOT/ops/dc.sh" ]; then
+  echo 'Error: ops/dc.sh not found or not executable.' >&2
   exit 1
 fi
+DC="$ROOT/ops/dc.sh"
 
 domains=(hub.oscript.io oscript.io build.oscript.io s3.oscript.io grafana.oscript.io)
 rsa_key_size=4096
@@ -24,7 +28,7 @@ if [ ! -e "$ssl_conf_path/options-ssl-nginx.conf" ] || [ ! -e "$ssl_conf_path/ss
   echo "### Downloading recommended TLS parameters ..."
   mkdir -p "$ssl_conf_path"
   curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/tls_configs/options-ssl-nginx.conf > "$ssl_conf_path/options-ssl-nginx.conf"
-  curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot/ssl-dhparams.pem > "/$ssl_conf_path/ssl-dhparams.pem"
+  curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot/ssl-dhparams.pem > "$ssl_conf_path/ssl-dhparams.pem"
   echo
 fi
 
@@ -32,7 +36,7 @@ for domain in "${domains[@]}"; do
   echo "### Creating dummy certificate for $domain..."
   path="/etc/letsencrypt/live/$domain"
   mkdir -p "$data_path/conf/live/$domain"
-  docker-compose run --rm --entrypoint "\
+  "$DC" run --rm --entrypoint "\
     openssl req -x509 -nodes -newkey rsa:1024 -days 1\
       -keyout '$path/privkey.pem' \
       -out '$path/fullchain.pem' \
@@ -41,12 +45,12 @@ done
 
 echo "### Starting nginx ..."
 # Start only nginx to avoid starting certbot renew loop (it locks certbot)
-docker-compose up --force-recreate --no-deps -d nginx
+"$DC" up --force-recreate --no-deps -d nginx
 echo
 
 for domain in "${domains[@]}"; do
   echo "### Deleting dummy certificate for $domain ..."
-  docker-compose run --rm --entrypoint "\
+  "$DC" run --rm --entrypoint "\
     rm -Rf /etc/letsencrypt/live/$domain && \
     rm -Rf /etc/letsencrypt/archive/$domain && \
     rm -Rf /etc/letsencrypt/renewal/$domain.conf" certbot
@@ -65,7 +69,7 @@ for domain in "${domains[@]}"; do
   # Enable staging mode if needed
   if [ $staging != "0" ]; then staging_arg="--staging"; fi
 
-  docker-compose run --rm --entrypoint "\
+  "$DC" run --rm --entrypoint "\
     certbot certonly --webroot -w /var/www/certbot \
       $staging_arg \
       $email_arg \
@@ -76,4 +80,4 @@ for domain in "${domains[@]}"; do
 done
 
 echo "### Reloading nginx ..."
-docker-compose exec nginx nginx -s reload
+"$DC" exec nginx nginx -s reload

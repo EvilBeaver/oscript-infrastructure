@@ -5,14 +5,18 @@
 
 set -e
 
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+
+if [ ! -x "$ROOT/ops/dc.sh" ]; then
+  echo 'Error: ops/dc.sh not found or not executable.' >&2
+  exit 1
+fi
+DC="$ROOT/ops/dc.sh"
+
 domain="$1"
 if [ -z "$domain" ]; then
   echo "Usage: $0 <domain>" >&2
-  exit 1
-fi
-
-if ! [ -x "$(command -v docker-compose)" ]; then
-  echo 'Error: docker-compose is not installed.' >&2
   exit 1
 fi
 
@@ -29,18 +33,18 @@ fi
 echo "### Creating dummy certificate for $domain ..."
 path="/etc/letsencrypt/live/$domain"
 mkdir -p "$data_path/conf/live/$domain"
-docker-compose run --rm --no-deps --entrypoint "\
+"$DC" run --rm --no-deps --entrypoint "\
   openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
     -keyout '$path/privkey.pem' \
     -out '$path/fullchain.pem' \
     -subj '/CN=localhost'" certbot
 
 echo "### Rebuilding nginx with the new site ..."
-docker-compose build nginx
-docker-compose up --force-recreate --no-deps -d nginx
+"$DC" build nginx
+"$DC" up --force-recreate --no-deps -d nginx
 
 echo "### Deleting dummy certificate for $domain ..."
-docker-compose run --rm --no-deps --entrypoint "\
+"$DC" run --rm --no-deps --entrypoint "\
   rm -Rf /etc/letsencrypt/live/$domain && \
   rm -Rf /etc/letsencrypt/archive/$domain && \
   rm -Rf /etc/letsencrypt/renewal/$domain.conf" certbot
@@ -48,7 +52,7 @@ docker-compose run --rm --no-deps --entrypoint "\
 echo "### Requesting Let's Encrypt certificate for $domain ..."
 if [ $staging != "0" ]; then staging_arg="--staging"; fi
 
-docker-compose run --rm --no-deps --entrypoint "\
+"$DC" run --rm --no-deps --entrypoint "\
   certbot certonly --webroot -w /var/www/certbot \
     $staging_arg \
     --email $email \
@@ -58,4 +62,4 @@ docker-compose run --rm --no-deps --entrypoint "\
     --non-interactive" certbot
 
 echo "### Reloading nginx ..."
-docker-compose exec nginx nginx -s reload
+"$DC" exec nginx nginx -s reload
