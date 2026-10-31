@@ -11,5 +11,7 @@
   ansible.builtin.command:
     cmd: apt-get install -y {{ apt_package }}
   become: true
+  environment:
+    DEBIAN_FRONTEND: noninteractive
   when: apt_install_dpkg.stdout is not search('install ok installed')
   changed_when: apt_install_dpkg.stdout is not search('install ok installed')

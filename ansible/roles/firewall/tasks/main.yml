@@ -55,6 +55,23 @@
     - firewall
     - never
 
+- name: Установить at для таймера отката (Xenial, без python3-apt)
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../../tasks/apt_install.yml"
+    apply:
+      tags:
+        - firewall
+        - never
+  vars:
+    apt_package: at
+  when:
+    - not firewall_confirmed_stat.stat.exists
+    - firewall_rollback_minutes is defined
+    - ansible_distribution_release == 'xenial'
+  tags:
+    - firewall
+    - never
+
 - name: Установить at для таймера отката
   ansible.builtin.apt:
     name: at
@@ -62,6 +79,7 @@
   when:
     - not firewall_confirmed_stat.stat.exists
     - firewall_rollback_minutes is defined
+    - ansible_distribution_release != 'xenial'
   tags:
     - firewall
     - never
@@ -139,12 +157,27 @@
     - firewall
     - never
 
+- name: iptables-persistent (Xenial, без python3-apt)
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../../tasks/apt_install.yml"
+    apply:
+      tags:
+        - firewall
+        - never
+  vars:
+    apt_package: iptables-persistent
+  when: ansible_distribution_release == 'xenial'
+  tags:
+    - firewall
+    - never
+
 - name: iptables-persistent для сохранения ip6tables
   ansible.builtin.apt:
     name: iptables-persistent
     state: present
   environment:
     DEBIAN_FRONTEND: noninteractive
+  when: ansible_distribution_release != 'xenial'
   tags:
     - firewall
     - never
@@ -181,17 +214,6 @@
     rule: allow
     port: "22"
     proto: tcp
-  when: firewall_profile == 'worker'
-  tags:
-    - firewall
-    - never
-
-- name: WireGuard UDP только с адреса A
-  community.general.ufw:
-    rule: allow
-    port: "{{ wireguard_port | string }}"
-    proto: udp
-    from_ip: "{{ firewall_peer_public_ip }}"
   when: firewall_profile == 'worker'
   tags:
     - firewall

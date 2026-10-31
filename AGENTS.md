@@ -58,10 +58,10 @@ cd /opt/oscript
 ansible-playbook ansible/site.yml \
   -e @/opt/oscript-secrets/vault.yml \
   --vault-password-file /opt/oscript-secrets/vault_pass \
-  --tags common,never
+  --tags common
 ```
 
-Роли, меняющие хост, помечены тегом `never` — указывайте его вместе с ролью (`wg`, `firewall`, `app`, …). На A модули Ansible — `/opt/python3/bin/python3`. Подробности — [`.cursor/plans/04-ansible.md`](.cursor/plans/04-ansible.md).
+Роли, меняющие хост, помечены тегом `never` и без `--tags` не выполняются. В `--tags` передают **только** тег роли (`common`, `firewall`, `wg`, …), без `never`: иначе выполнятся все роли с `never`. На A модули Ansible — `/opt/python3/bin/python3`. Подробности — [`.cursor/plans/04-ansible.md`](.cursor/plans/04-ansible.md).
 
 ## Типовые задачи
 

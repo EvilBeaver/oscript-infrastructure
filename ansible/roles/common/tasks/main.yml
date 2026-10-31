@@ -117,7 +117,12 @@
     - never
 
 - name: rsync на edge (для копирования томов на этапе 7)
-  ansible.builtin.include_tasks: "{{ role_path }}/../../tasks/apt_install.yml"
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../../tasks/apt_install.yml"
+    apply:
+      tags:
+        - common
+        - never
   vars:
     apt_package: rsync
   when:

@@ -27,6 +27,7 @@
   changed_when: false
   failed_when: false
   become: false
+  check_mode: false
   when: app_checkout | bool
   tags:
     - app
@@ -56,14 +57,16 @@
     - app
     - never
 
-- name: Владелец каталога стека
-  ansible.builtin.file:
-    path: "{{ stack_dir }}"
-    state: directory
-    owner: deploy
-    group: docker
-    mode: "2755"
-    recurse: true
+# 2755 только у каталогов (setgid, группа docker). Mode файлов не трогать:
+# recurse file+2755 делает privkey.pem и .env читаемыми для всех.
+- name: Владелец дерева стека
+  ansible.builtin.shell: |
+    set -euo pipefail
+    find "{{ stack_dir }}" -type d -exec chown deploy:docker {} +
+    find "{{ stack_dir }}" -type d -exec chmod 2755 {} +
+    find "{{ stack_dir }}" -type f -exec chown deploy:docker {} +
+  args:
+    executable: /bin/bash
   when: app_checkout | bool or app_apply | bool
   tags:
     - app

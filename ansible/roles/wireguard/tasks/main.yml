@@ -8,7 +8,12 @@
     - never
 
 - name: Пакет WireGuard на edge (Xenial)
-  ansible.builtin.include_tasks: "{{ role_path }}/../../tasks/apt_install.yml"
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../../tasks/apt_install.yml"
+    apply:
+      tags:
+        - wg
+        - never
   vars:
     apt_package: wireguard-tools
   when:

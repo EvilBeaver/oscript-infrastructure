@@ -26,9 +26,14 @@ docker run --rm \
 
     ansible-lint ansible/site.yml ansible/roles
 
-    ansible-playbook --list-tasks -i ansible/inventory.example.ini ansible/site.yml --tags firewall,never | grep -q "Цепочка DOCKER-USER"
-    ansible-playbook --list-tasks -i ansible/inventory.example.ini ansible/site.yml --tags wg,never | grep -q "Конфиг wg0"
-    ansible-playbook --list-tasks -i ansible/inventory.example.ini ansible/site.yml --tags firewall_confirm,never | grep -q "подтверждённый"
+    firewall_tasks=$(ansible-playbook --list-tasks -i ansible/inventory.example.ini ansible/site.yml --tags firewall)
+    printf '%s\n' "$firewall_tasks" | grep -q "Цепочка DOCKER-USER"
+    printf '%s\n' "$firewall_tasks" | grep -q "Конфиг wg0" && { echo "FAIL: --tags firewall захватил wireguard"; exit 1; }
+    printf '%s\n' "$firewall_tasks" | grep -q "подтверждённый" && { echo "FAIL: --tags firewall захватил firewall_confirm"; exit 1; }
+    true
+    ansible-playbook --list-tasks -i ansible/inventory.example.ini ansible/site.yml --tags wg | grep -q "Конфиг wg0"
+    ansible-playbook --list-tasks -i ansible/inventory.example.ini ansible/site.yml --tags firewall_confirm | grep -q "подтверждённый"
+    ansible-playbook --list-tasks -i ansible/inventory.example.ini ansible/site.yml --tags firewall,never | grep -q "Конфиг wg0"
 
     git check-ignore -v ansible/inventory.ini ansible/vault.yml vault_pass.txt
 

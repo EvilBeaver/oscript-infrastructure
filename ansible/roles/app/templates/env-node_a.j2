@@ -16,5 +16,8 @@ MINIO_ROOT_USER={{ MINIO_ROOT_USER }}
 MINIO_ROOT_PASSWORD={{ MINIO_ROOT_PASSWORD }}
 JENKINS_S3_ACCESS_KEY={{ JENKINS_S3_ACCESS_KEY }}
 JENKINS_S3_SECRET_KEY={{ JENKINS_S3_SECRET_KEY }}
+{% if nginx_status_endpoint is defined and (nginx_status_endpoint | string | length) > 0 %}
+NGINX_STATUS_ENDPOINT={{ nginx_status_endpoint }}
+{% endif %}
 OTEL_HOST_NAME={{ otel_host_name }}
 DOCKER_GID={{ app_docker_gid }}

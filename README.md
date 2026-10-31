@@ -45,7 +45,7 @@ cd /opt/oscript
 ansible-playbook ansible/site.yml \
   -e @/opt/oscript-secrets/vault.yml \
   --vault-password-file /opt/oscript-secrets/vault_pass \
-  --tags common,never,firewall
+  --tags common --limit node_b
 ```
 
 Проверка каркаса без хостов: `./ansible/test/run.sh`. Ручная подготовка B — глава 4 в [`.cursor/plans/04-ansible.md`](.cursor/plans/04-ansible.md).

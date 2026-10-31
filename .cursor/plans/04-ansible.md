@@ -9,12 +9,24 @@ Ansible здесь — команда, которую человек запус�
 cd /opt/oscript
 ansible-playbook ansible/site.yml \
   -e @/opt/oscript-secrets/vault.yml \
-  --vault-password-file /opt/oscript-secrets/vault_pass
-# роли, меняющие хост, помечены тегом never — указывайте его вместе с ролью:
-#   --tags wg,never   --tags firewall,never   --tags common,never,firewall
+  --vault-password-file /opt/oscript-secrets/vault_pass \
+  --tags firewall --limit node_b \
+  -e firewall_rollback_minutes=10
 ```
 
-Голый `ansible-playbook ansible/site.yml` без тегов выполняет только проверку inventory и версий Ansible/Docker; файрвол, WireGuard и остальное не трогает.
+Тег `never` на задачах значит «не выполнять при запуске без `--tags`». В `--tags` его **не передают**: выборка тегов — по «или», и `--tags firewall,never` выполняет **все** роли, у которых есть `never` (common, firewall, wireguard, spoofdpi, app, portainer). Нужная роль выбирается своим тегом:
+
+```text
+--tags common
+--tags firewall --limit node_b
+--tags wg
+--tags spoofdpi --limit node_a
+--tags firewall_confirm --limit node_a
+--tags app
+--tags portainer
+```
+
+Голый `ansible-playbook ansible/site.yml` без тегов выполняет только задачи без `never` (проверка inventory и версий Ansible/Docker). Файрвол, WireGuard и остальное не трогает.
 
 Плейбук по SSH заходит на A как `deploy` и локально, тем же пользователем, приводит B к описанному состоянию.
 
@@ -82,12 +94,12 @@ Root по SSH на A для Ansible не открывают. Уже включё
 
 ## Один раз руками на B, до первого плейбука
 
-Начальная настройка B ручная; роль `common` Ansible не устанавливает.
+Начальная настройка B ручная; роль `common` Ansible не устанавливает. Команды sudoers, Docker, `PATH` после pipx, порядок `vault_pass` и однострочный inventory — [инструкция B](operator-manual-B.md). `--tags common` повторно ставит Docker CE. Плейбук без `--tags` на пустой B падает на проверке `docker version` и установку не начинает (`never`).
 
 1. Пользователь `deploy`: sudo без пароля, группа `docker`. Ключ `~/.ssh/oscript_deploy`, публичная часть на A (`authorized_keys` с `from="<IP B>"`).
 2. pipx: `pipx install 'ansible-core==2.18.11'`, затем `ansible-galaxy collection install -r /opt/oscript/ansible/requirements.yml`.
 3. Каталог `/opt/oscript`: владелец `deploy:docker`, `2755`. Клон репозитория, `git config --system --add safe.directory /opt/oscript`.
-4. Docker CE и compose-plugin (дальше поддерживает роль `common` с тегами `common,never`).
+4. Docker CE и compose-plugin (дальше поддерживает роль `common` с тегом `common`, без `never` в `--tags`).
 5. `/opt/oscript-secrets/` (`0700`), `vault.yml` и `vault_pass` (`0400`). `ansible/inventory.ini` из [`inventory.example.ini`](../../ansible/inventory.example.ini) с `inventory_is_example=false` и `ansible_connection=local` у `node_b`.
 
 Проверка: `ansible all -m ping` с B.
@@ -99,7 +111,7 @@ Root по SSH на A для Ansible не открывают. Уже включё
 Порядок ролей:
 
 1. `common`. На B ставит Docker и базовые пакеты (`ca-certificates`, `curl`, `rsync`). На A проверяет, что Engine и `docker compose` на месте, и не переустанавливает их. Unified Agent не трогает. Ветка по `ansible_distribution_version`.
-2. `firewall` и `spoofdpi` — на A, см. ниже. На B `firewall` создаёт политику по умолчанию: с интернета только 22/tcp и 51820/udp с адреса A, плюс свой `DOCKER-USER` в `/etc/ufw/after.rules` (правило `DROP` применяется только к входящим пакетам с внешнего интерфейса `-i <wan_if>`, а трафик с `-i wg0` пропускается через `RETURN`, чтобы нода A видела опубликованные на `10.9.0.2` порты `minio` и `lgtm`, но случайно опубликованный на `0.0.0.0` порт контейнера не стал доступен из интернета).
+2. `firewall` и `spoofdpi` — на A, см. ниже. На B `firewall` создаёт политику по умолчанию: с интернета только 22/tcp. Входящий 51820/udp на B не открывается: WireGuard там клиент и порт не слушает. Свой `DOCKER-USER` в `/etc/ufw/after.rules`: правило `DROP` применяется только к входящим пакетам с внешнего интерфейса `-i <wan_if>`, а трафик с `-i wg0` пропускается через `RETURN`, чтобы нода A видела опубликованные на `10.9.0.2` порты `minio` и `lgtm`, но случайно опубликованный на `0.0.0.0` порт контейнера не стал доступен из интернета.
 3. `wireguard`.
 4. `app` — git, шаблон `.env`, `community.docker.docker_compose_v2`.
 5. `portainer` — тег `portainer`, в первый прогон на A не входит. После приёмки переноса.
@@ -111,7 +123,7 @@ Root по SSH на A для Ansible не открывают. Уже включё
 ### Роль app
 
 - `ansible.builtin.git` только при `-e app_checkout=true` и обязательном `-e deploy_ref=…` (на миграции `feature/multi-host`). Локальные правки tracked-файлов роль не затирает.
-- Владелец дерева — `deploy:docker`, каталоги `2755`. Роль это поддерживает и не делает `chown` на человека. Системные роли по-прежнему с `become`.
+- Владелец дерева — `deploy:docker`. Режим `2755` ставится **только каталогам** (setgid). Mode файлов роль не меняет: `privkey.pem` остаётся `600`, `.env` не становится `2755`. Системные роли по-прежнему с `become`. Роль не делает `chown` на человека.
 - Каталог не копируется с control node поверх clone: так затираются `web/certbot`, `.env` и логи. Исключения из git на хосте те же, что сейчас: `.env`, `web/certbot/`, логи, тома Docker.
 - `.env` режим `0640`, группа `docker`. Compose не вызывается, пока файла нет.
 - `project_name: os`, `files: "{{ compose_files }}"`, `env_files: [.env]` относительно `project_src`.
@@ -121,11 +133,11 @@ Root по SSH на A для Ansible не открывают. Уже включё
 
 - Пакет на A — только `wireguard-tools` из `xenial-updates/universe` (`1.0.20200513-1~16.04.2`). Метапакет `wireguard` не ставить: он может потянуть DKMS. Модуль ядра уже есть (`wireguard.ko`, `intree`), роль делает `modprobe wireguard` и кладёт файл в `/etc/modules-load.d/`.
 - На B — обычный пакет WireGuard из Ubuntu 24.04.
-- Ключи: закрытый в `/etc/wireguard` (режим `0600`) и копия в `vault.yml`. В git ключей нет. Два прохода: сначала ключи на обеих нодах, потом шаблон. Шаблон пира не рендерится при пустой группе `edge`.
-- A — хаб, `ListenPort 51820`, peer с `AllowedIPs` адреса B `/32`. B — клиент, `Endpoint` публичный адрес A, `AllowedIPs = 10.9.0.1/32`, `PersistentKeepalive = 25`.
+- Ключи до первого `--tags wg`: две пары (`wg genkey` / `wg pubkey`) в `vault.yml`. Роль копирует закрытый ключ в `/etc/wireguard/privatekey` (`0600`). Пустые значения в vault запускают генерацию на хосте и намеренный `fail`; этот проход не используется — задача печати ключа пишет закрытый ключ в лог Ansible (`tee` на stdout, без `no_log`). Шаблон пира не рендерится при пустой группе `edge`.
+- A — хаб, `ListenPort 51820`, peer с `AllowedIPs` адреса B `/32`. B — клиент, `Endpoint` публичный адрес A, `AllowedIPs = 10.9.0.1/32`, `PersistentKeepalive = 25`, без `ListenPort`.
 - Handler перезапускает `wg-quick@wg0`.
 - Подсеть проверить на пересечение с маршрутами провайдеров и docker bridge (`ip route` на обеих нодах) до первого `wg-quick up`. MTU оставить 1420 и проверить крупным пакетом: `ping -M do -s 1372`.
-- UDP 51820 открыт в ufw только с адреса пира и в панели провайдера, если там есть security group.
+- Входящий UDP 51820 — только на A, в ufw и в security group провайдера, если она есть, с публичного IP B. На B роль firewall этот порт не открывает. В security group B его тоже не открывать. Входящий TCP 22 на B — для оператора.
 - Drop-in `docker.service.d/wg.conf`: `After=wg-quick@wg0.service` и `Wants=wg-quick@wg0.service`. Порты контейнеров висят на адресе `wg0`. Если интерфейса ещё нет, Docker не сможет сделать bind, и политика `restart` это не лечит.
 - Исходящий трафик контейнеров A в `10.9.0.2` уходит через `wg0` уже с MASQUERADE Docker, источник становится `10.9.0.1` и попадает в `AllowedIPs` на B. Отдельный SNAT не нужен. То же проверить в обратную сторону.
 
@@ -135,7 +147,28 @@ Root по SSH на A для Ansible не открывают. Уже включё
 
 Шаблон `/etc/ufw/after.rules` повторяет эталон из [главы 2](02-as-is.md): цепочка `DOCKER-USER` и разрешения 8888 для `docker0` и `br+`. Остальные правила — модулем ufw из коллекции `community.general`: 22, 80, 443, 50000 и `8888/tcp` из docker-сетей, плюс `51820/udp` только с IP B.
 
-Пока роли нет, ufw и `after.rules` на A из Ansible не трогать. Первый прогон — с таймером отката (`at now + 10 minutes` → `ufw disable`), и только после того, как 22/tcp уже разрешён. Иначе можно закрыть себе SSH.
+Первый прогон на хосте, где ещё нет штампа `/var/lib/oscript/firewall-confirmed`:
+
+```bash
+ansible-playbook ansible/site.yml \
+  -e @/opt/oscript-secrets/vault.yml \
+  --vault-password-file /opt/oscript-secrets/vault_pass \
+  --tags firewall --limit node_a \
+  -e firewall_rollback_minutes=10
+```
+
+Задачи подтверждения помечены только `firewall_confirm` (и `never`). Тег роли на `site.yml` им не наследуется, иначе `--tags firewall` сразу создаёт штамп и задача «Требовать таймер отката» таймер не ставит. После проверки, что SSH жив:
+
+```bash
+ansible-playbook ansible/site.yml \
+  -e @/opt/oscript-secrets/vault.yml \
+  --vault-password-file /opt/oscript-secrets/vault_pass \
+  --tags firewall_confirm --limit node_a
+```
+
+Это снимает задание `at` и ставит штамп. Повторный `--tags firewall` таймер уже не требует.
+
+Пакеты `at` и `iptables-persistent` на Xenial ставятся через `apt-get` (`ansible/tasks/apt_install.yml`), не модулем `ansible.builtin.apt`: у `/opt/python3/bin/python3` нет `python3-apt`. 22/tcp разрешается до `ufw enable`. Держите вторую SSH-сессию, пока не прошёл `firewall_confirm`.
 
 Опубликованные на адрес туннеля порты (`10.9.0.1:5432`, `10.9.0.1:8080`) идут через цепочки Docker. Правило `DOCKER-USER` с `-i eth0` их для трафика с `wg0` не закрывает и закрывает попытку зайти на них с интернета.
 

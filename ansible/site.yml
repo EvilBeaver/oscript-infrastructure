@@ -10,25 +10,15 @@
         fail_msg: "Нужен боевой inventory с inventory_is_example=false"
 
   roles:
+    # Теги задач — внутри ролей (в том числе never). На роли их не вешать:
+    # тег роли наследуется всеми задачами, включая firewall_confirm, и --tags firewall
+    # тогда подтверждает файрвол до таймера отката.
+    # --tags <роль>,never запускает ВСЕ роли с тегом never (never — обычный тег, выборка по ИЛИ).
+    # Нужная роль: --tags firewall | --tags wg | --tags common — без never.
     - role: common
     - role: firewall
-      tags:
-        - firewall
-        - never
     - role: spoofdpi
-      tags:
-        - spoofdpi
-        - never
       when: spoofdpi_enabled | default(false) | bool
     - role: wireguard
-      tags:
-        - wg
-        - never
     - role: app
-      tags:
-        - app
-        - never
     - role: portainer
-      tags:
-        - portainer
-        - never

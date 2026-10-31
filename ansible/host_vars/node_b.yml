@@ -16,4 +16,4 @@ app_env_required_keys:
   - OPENHUB_S3_SECRET_KEY
   - GRAFANA_ADMIN_PASSWORD
   - GRAFANA_DB_PASSWORD
-  - NGINX_STATUS_ENDPOINT
+# NGINX_STATUS_ENDPOINT в .env берётся из nginx_status_endpoint выше, не из vault.

@@ -12,6 +12,8 @@
 | [4. Ansible](04-ansible.md) | Откуда запускать, роли, WireGuard, файрвол, SpoofDPI |
 | [5. Как меняется репозиторий](05-repo-refactor.md) | В каком порядке монолит и скрипты уступают место модулям и Ansible |
 | [6. Порядок работ на хостах](06-work-order.md) | Этапы 1–8 по порядку, окно, откат, критерии |
+| [Инструкция: нода A](operator-manual-A.md) | Окна и проверки на edge |
+| [Инструкция: нода B](operator-manual-B.md) | Control Ansible, подготовка worker, rsync |
 
 ## Статус
 
