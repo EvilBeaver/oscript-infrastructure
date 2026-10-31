@@ -1,15 +1,14 @@
 FROM debian:bullseye-slim
 
-ARG MINIO_DEB_URL=https://dl.min.io/server/minio/release/linux-amd64/archive/minio.deb
-ARG MC_URL=https://dl.min.io/client/mc/release/linux-amd64/mc
+# dl.min.io отдаёт 410; бинарники — с GitHub Releases (последний релиз с assets).
+ARG MINIO_URL=https://github.com/minio/minio/releases/download/RELEASE.2025-09-07T16-13-09Z/minio.linux-amd64.RELEASE.2025-09-07T16-13-09Z
+ARG MC_URL=https://github.com/minio/mc/releases/download/RELEASE.2025-08-13T08-35-41Z/mc.linux-amd64.RELEASE.2025-08-13T08-35-41Z
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl \
   && rm -rf /var/lib/apt/lists/* \
-  && curl -fsSLo /tmp/minio.deb "${MINIO_DEB_URL}" \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends /tmp/minio.deb \
-  && rm -f /tmp/minio.deb \
+  && curl -fsSLo /usr/local/bin/minio "${MINIO_URL}" \
+  && chmod +x /usr/local/bin/minio \
   && curl -fsSLo /usr/bin/mc "${MC_URL}" \
   && chmod +x /usr/bin/mc \
   && ln -sf /usr/local/bin/minio /usr/bin/minio

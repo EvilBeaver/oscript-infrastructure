@@ -2,6 +2,7 @@ services:
   s3-sync:
     container_name: os_s3-sync_1
     build: ../../S3
+    image: os_s3-sync
     restart: always
     environment:
       - S3_ACCESS_KEY_ID

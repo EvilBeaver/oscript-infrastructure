@@ -2,6 +2,7 @@ services:
   minio:
     container_name: os_minio_1
     build: ../../minio
+    image: os_minio
     restart: always
     environment:
       - MINIO_ROOT_USER
