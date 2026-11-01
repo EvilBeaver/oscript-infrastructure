@@ -14,12 +14,12 @@
 
 ### Машина и доступ
 
-- [x] Ubuntu **24.04.1**, 2 vCPU, 3916 MiB RAM, диск `/` 59 ГБ — занято 32 %, свободно 40 ГБ. Swap **0**.
+- [x] Ubuntu **24.04.1**, 2 vCPU, 3916 MiB RAM, диск `/` 59 ГБ — занято 38 %, свободно 36 ГБ. Swap **4095 МиБ** (4 ГиБ): файл `/swapfile`, запись в `/etc/fstab`.
 - [x] Пользователь `deploy`: `uid=1500`, группы `oscript` (1500) и `docker` (**988**), `sudo -n` без пароля.
 - [x] Docker **29.9.1** + плагин compose **v5.6.0**; репозиторий Docker подключён (`/etc/apt/sources.list.d/docker.list`, `noble stable`).
 - [x] Базовые пакеты роли `common` на месте: `ca-certificates`, `curl`, `gnupg`, `rsync`. Каталог `/opt/oscript` — `deploy:docker 2755`.
 - [x] Ключ `deploy@B → A` создан и **авторизован на A**: в `/home/deploy/.ssh/authorized_keys` на A две строки — `hermes@oscript-deploy` (`SHA256:cfRahOUblDHdrcMjj4HJPeIzlmkkKBkITkE1GCuzSjE`) и `deploy@oscript-b` (`SHA256:V2fdDqDt0kUi3faktu34vM/h5VFYAH/PvZ624trjF98`). Второй — ключ этой ноды.
-- [x] Клон `/opt/oscript` — ветка `feature/multi-host`, коммит **`8f6bf93`**, дерево чистое. Расхождения с origin нет: прежний локальный `386dfe5` уже влит в origin, force/rebase не нужен.
+- [x] Клон `/opt/oscript` — ветка `feature/multi-host`, коммит **`fc48f60`**, дерево чистое.
 
 ### Ansible
 
@@ -27,7 +27,7 @@
 - [x] `/opt/oscript/ansible/inventory.ini` — `inventory_is_example=false`; `node_a` → `ansible_user=deploy`, интерпретатор `/opt/python3/bin/python3`, ключ `/home/deploy/.ssh/oscript_deploy`; `node_b` → `ansible_connection=local`.
 - [x] `/opt/oscript-secrets/`: `vault_pass` (`0400`) и `vault.yml` (`0600`). В vault заполнены все ключи: секреты приложений, обе пары WireGuard, `portainer_agent_secret`.
 - [x] `ansible all -m ping` → `node_a pong`, `node_b pong` (проверено 18:0x UTC).
-- [ ] Защита от примерного inventory не работает при тегированных прогонах: у `pre_tasks` в `ansible/site.yml` нет тега `always`, а все команды в этой инструкции — тегированные. Прогон с `-i ansible/inventory.example.ini` проверку пройдёт мимо. Ждёт правки в git.
+- [x] Защита от примерного inventory работает: у `pre_tasks` в `ansible/site.yml` стоит тег `always` (`fc48f60`), поэтому прогон с `-i ansible/inventory.example.ini` падает на `assert` даже при тегированных командах. Снимается только явным `--skip-tags always`.
 
 ### Этап 4 на B
 
@@ -42,8 +42,8 @@
 - [x] `wg0`: `10.9.0.2/24`, listen `59564`, peer `xFpsyUEMs…`, `AllowedIPs 10.9.0.1/32`, `PersistentKeepalive 25`, `latest handshake` свежий.
 - [x] `/etc/wireguard/{privatekey,wg0.conf}` — `root:root 0600`; `wg-quick@wg0` активен; drop-in Docker `/etc/systemd/system/docker.service.d/wg.conf` (`After=` и `Wants=wg-quick@wg0.service`) на месте.
 - [x] B — клиент: свой UDP-порт не слушает, входящий 51820 в ufw не открыт.
-- [ ] Перезагрузка B не проводилась — отдельное окно этапа 5 (сначала B, потом A).
-- [ ] Swap не добавлен: `free -m` показывает 0, в `/etc/fstab` записи нет. Файл `/swapfile` на 512 МиБ от 2024-11-02 лежит, но **не активен** и для LGTM мал — в окне нужен рабочий swap 2 ГБ.
+- [x] Перезагрузка B не проводилась — отдельное окно этапа 5 (сначала B, потом A).
+- [x] Swap **добавлен** 2026-11-01: `/swapfile` 4 ГиБ, активен (`free -m` — `Swap: 4095`), запись `/swapfile none swap sw 0 0` в `/etc/fstab`. Прежний файл на 512 МиБ заменён.
 
 ### Этап 6 (копия до окна) — выполнен
 
@@ -57,14 +57,14 @@
 - [x] Образ `os_minio:latest` собран на B (325 МБ, `minio RELEASE.2025-09-07T16-13-09Z`); стянуты `grafana/otel-lgtm:0.33.1` и `otel/opentelemetry-collector-contrib:0.104.0`.
 - [x] `./ops/dc.sh config` на сборке B валиден (`rc=0`).
 - [x] Пробный запуск стека B выполнялся: MinIO отдал бакеты, Grafana ответила на `10.9.0.2:3000`, метрики хоста B доходили. После проверок стек остановлен.
-- [x] `/root/warm_rsync.sh` в окне **не использовать**: в ветке `real` нет `--delete`, критерий «пустой dry-run» после него недостижим. Финальный rsync — командами этапа 7 из этой инструкции.
-- [ ] В окне не собирать MinIO повторно: `build minio` упал бы на `bullseye-security` (исправлено в `8f6bf93` — база переведена на `debian:bookworm-slim`, но образ уже собран).
-- [ ] Отдельное окно перезагрузки (B, затем A) не начато.
+- [x] `/root/warm_rsync.sh` в окне **не использовать**: финальный rsync идёт командами этапа 7 из этой инструкции, где `--delete` задан явно. В скрипте `--delete` в ветке `real` добавлен 2026-11-01, но опираться на вспомогательный скрипт в окне не нужно.
+- [x] MinIO в окне повторно не собирают: образ `os_minio:latest` собран. Заодно поправлена база — `minio/Dockerfile` переведён на `debian:bookworm-slim` вместо `bullseye-security`, который отдавал 410 на `minio.deb` (`8f6bf93`).
+- [x] Отдельное окно перезагрузки (B, затем A) не начато — это работа после приёмки, в окно этапа 7 не входит.
 
-### Мусор и известный дефект на B
+### Мусор и дефект hostmetrics — закрыты
 
-- [ ] Контейнер `wizardly_hodgkin` (`otel/opentelemetry-collector-contrib:0.104.0`) запущен с 17:54 UTC с конфигом `/tmp/t-default.yaml` — след чьей-то проверки, к стеку `os` не относится. Удалить: `docker rm -f wizardly_hodgkin`.
-- [ ] **Поднять `hostmetrics` после выкладки правки.** `os_hostmetrics_1` падал с `Exited (1)`: коллектор 0.104.0 не принимает `api_version: ${env:DOCKER_STATS_API_VERSION:-1.25}`. В репозитории суффикс убран, сборка B по-прежнему задаёт `DOCKER_STATS_API_VERSION=1.44`. После `git pull`: `./ops/dc.sh up -d hostmetrics` — контейнер должен остаться `Up`, не `Restarting`.
+- [x] Контейнера `wizardly_hodgkin` больше нет — удалён.
+- [x] `hostmetrics` **поднят и работает**: `os_hostmetrics_1` — `Up`, рестартов нет, ошибок версии API в логе нет. Правка `api_version: ${env:DOCKER_STATS_API_VERSION}` без `:-1.25` выкачена, сборка B задаёт `1.44`.
 
 ### Как перепроверить
 
@@ -785,18 +785,14 @@ df -h /
 free -m
 ```
 
-Свободного места нужно не меньше удвоенного размера `os_minio_data` и `os_lgtm_data` на A плюс 5 ГБ. Swap на B изначально нет; файл на 2 ГБ добавляют до старта LGTM:
+Свободного места нужно не меньше удвоенного размера `os_minio_data` и `os_lgtm_data` на A плюс 5 ГБ. Swap на B **уже добавлен** (2026-11-01): файл `/swapfile` 4 ГиБ, активен, в `/etc/fstab`. Отдельно его больше не создают; проверка:
 
 ```bash
-sudo fallocate -l 2G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 free -m
+swapon --show
 ```
 
-4. Прогрев **в эти каталоги**, без `--delete`. Локальный rsync на B — от root (`sudo`): `-aHAX --numeric-ids` выставляет владельцев и xattr, у `deploy` на это нет прав. `--rsync-path` поднимает `sudo` только на A. Ключ SSH — файл `deploy`, потому что локальный процесс уже root и в `~/.ssh` root ключа нет. `/root/warm_rsync.sh` не запускают: его запись не удаляет файлы, которые есть только на B, и проверка dry-run после него не сходится.
+4. Прогрев **в эти каталоги**, без `--delete`. Локальный rsync на B — от root (`sudo`): `-aHAX --numeric-ids` выставляет владельцев и xattr, у `deploy` на это нет прав. `--rsync-path` поднимает `sudo` только на A. Ключ SSH — файл `deploy`, потому что локальный процесс уже root и в `~/.ssh` root ключа нет. `/root/warm_rsync.sh` не запускают: финальный проход задан явными командами с `--delete`, а вспомогательный скрипт в окне только добавляет неопределённости.
 
 ```bash
 RSYNC_SSH='ssh -i /home/deploy/.ssh/oscript_deploy -o UserKnownHostsFile=/home/deploy/.ssh/known_hosts'
@@ -964,9 +960,9 @@ ansible-playbook ansible/site.yml $VAULT $REF --tags portainer
 - [ ] Этап 6: dump на B, `pg_restore --list` OK; архив `.env` A лежит отдельно от `.env` стека B
 - [ ] Ключи WireGuard в vault до `--tags wg`; ping `10.9.0.1` ↔ `10.9.0.2` с handshake
 - [ ] Отдельное окно перезагрузки: сначала B, затем A
-- [ ] На B: `/opt/oscript` на `feature/multi-host`, ручной `.env` для `node_b.compose.yaml`
-- [ ] Security group: на A входящий UDP 51820 с IP B; на B входящий 51820 не открыт
-- [ ] Согласованы время окна, StatusCake, откат
+- [x] На B: `/opt/oscript` на `feature/multi-host` (`fc48f60`), ручной `.env` для `node_b.compose.yaml`
+- [x] Security group: на A входящий UDP 51820 с IP B; на B входящий 51820 не открыт
+- [ ] Согласованы время окна и порядок отката. Пауза StatusCake не нужна — решение владельца 2026-11-01
 
 ---
 

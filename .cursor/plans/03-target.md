@@ -203,5 +203,8 @@ ansible-playbook ansible/site.yml \
 | --- | --- |
 | `./web/nginx/test/run.sh` | любой PR с nginx или edge-сборкой |
 | `./monitoring/test/run.sh` | PR с hostmetrics или otelcol-host |
+| `./ansible/test/run.sh` | PR с ролями, `site.yml`, `ansible.cfg` |
 | `docker compose … config` для обеих нод и колокации | PR с модулями |
 | `./minio/test/smoke.sh` | если меняется bootstrap MinIO |
+
+Замечание к тесту Ansible: в проверяемом списке задач он ищет имя `без второй цепочки` из роли `firewall`. Переименование задачи в роли требует синхронной правки `ansible/test/run.sh` — иначе тест краснеет не по делу (так и вышло в `fc48f60`, поймано 2026-11-01).

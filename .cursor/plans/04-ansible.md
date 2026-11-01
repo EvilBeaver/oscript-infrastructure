@@ -76,7 +76,7 @@ Root по SSH на A для Ansible не открывают. Уже включё
 
 ## Один раз руками на A, до первого плейбука
 
-Системный `/usr/bin/python3` — 3.5.2, его не меняют: на нём работает `apt`. Модули ansible-core 2.21 на этом интерпретаторе падают.
+Системный `/usr/bin/python3` — 3.5.2, его не меняют: на нём работает `apt`. Модули ansible-core 2.18 на этом интерпретаторе не работают: им нужен Python 3.8+ на управляемой ноде (`_PY_MIN = (3, 8)` в `module_utils/basic.py` самого ansible-core 2.18.11; проверено на распакованном пакете).
 
 Для модулей на A уже стоит CPython 3.12: `/opt/python3/bin/python3`. Рядом `/opt/python3/bin/uv` (44 МБ, `root:root`). Каталог `/opt/python3/bin` в `PATH` не входит. Проверка и любой ручной запуск — полным путём:
 
@@ -145,9 +145,9 @@ Root по SSH на A для Ansible не открывают. Уже включё
 
 ### Роль firewall на A
 
-Шаблон `/etc/ufw/after.rules` повторяет эталон из [главы 2](02-as-is.md): цепочка `DOCKER-USER` и разрешения 8888 для `docker0` и `br+`. Остальные правила — модулем ufw из коллекции `community.general`: 22, 80, 443, 50000 и `8888/tcp` из docker-сетей, плюс `51820/udp` только с IP B.
+Цепочка `DOCKER-USER` и разрешения 8888 для `docker0` и `br+` описаны заново: объявление цепочки в `/etc/ufw/after.rules` остаётся **одно**, правила переезжают в блок `# BEGIN/END oscript DOCKER-USER`. Остальные правила — модулем ufw из коллекции `community.general`: 22, 80, 443, 50000 и `8888/tcp` из docker-сетей, плюс `51820/udp` только с IP B.
 
-Если `:DOCKER-USER - [0:0]` уже есть в файле без маркеров, роль её не дублирует: старые строки `-A DOCKER-USER` (на edge ещё и `-A INPUT` на `8888` для `docker0` и `br+`) переносятся в блок `# BEGIN/END oscript DOCKER-USER`. В файле остаётся одно объявление цепочки. Второе ломает `iptables-restore` (`Chain already exists`), и `ufw reload` оставляет хост без файрвола. Повторный прогон с теми же правилами файл не меняет.
+Роль применяет готовый adopt-скрипт (`ansible/roles/firewall/files/adopt_docker_user.sh`, задача «Записать DOCKER-USER в after.rules без второй цепочки»), а не `blockinfile`: последний всегда вставлял своё объявление `:DOCKER-USER` вторым. Если объявления в файле ещё нет, скрипт его добавляет; если оно есть без маркеров — переносит существующие строки `-A DOCKER-USER` (на edge ещё и `-A INPUT` на `8888` для `docker0` и `br+`) в блок `# BEGIN/END oscript DOCKER-USER`, не создавая второго. Второе объявление ломает `iptables-restore` (`Chain already exists`), и `ufw reload` оставляет хост без файрвола. Повторный прогон файл не меняет, отдельная задача «В after.rules ровно одно объявление DOCKER-USER» это подтверждает.
 
 Первый прогон на хосте, где ещё нет штампа `/var/lib/oscript/firewall-confirmed`:
 

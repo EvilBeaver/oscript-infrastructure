@@ -27,7 +27,7 @@ docker run --rm \
     ansible-lint ansible/site.yml ansible/roles
 
     firewall_tasks=$(ansible-playbook --list-tasks -i ansible/inventory.example.ini ansible/site.yml --tags firewall)
-    printf '%s\n' "$firewall_tasks" | grep -q "Цепочка DOCKER-USER"
+    printf '%s\n' "$firewall_tasks" | grep -q "без второй цепочки"
     printf '%s\n' "$firewall_tasks" | grep -q "Конфиг wg0" && { echo "FAIL: --tags firewall захватил wireguard"; exit 1; }
     printf '%s\n' "$firewall_tasks" | grep -q "подтверждённый" && { echo "FAIL: --tags firewall захватил firewall_confirm"; exit 1; }
     true
