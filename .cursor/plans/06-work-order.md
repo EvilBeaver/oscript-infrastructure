@@ -219,7 +219,7 @@ CoreDNS, третья нода, registry, публичный Portainer — то�
 | `up` без `COMPOSE_PROJECT_NAME=os` | пустые тома `oscript_*`. Строка уже стоит в `.env` на A, её не убирают |
 | nginx не видит MinIO на B | статический `proxy_pass` и `extra_hosts`, без подмены Docker DNS |
 | OpenHub не достучится до OTLP | на B опубликован `10.9.0.2:4318` |
-| На B нет метрик хоста | hostmetrics в сборке B; для Docker 29 задан `DOCKER_STATS_API_VERSION=1.44`, на A остаётся API 1.25 |
+| На B нет метрик хоста | hostmetrics в сборке B; для Docker 29 задан `DOCKER_STATS_API_VERSION=1.44`, на A сборка подставляет `1.25`. В `otelcol-host.yaml` только `${env:DOCKER_STATS_API_VERSION}`: коллектор 0.104.0 не принимает `:-значение` |
 | Клиенты ещё ходят на hub-old | сборка nginx в подготовке этапа 7 убирает vhost (502 станет 444); сертификат и DNS — после приёмки, редирект не обещаем |
 | Финальный rsync не удаляет лишнее на B | только команды инструкции B с `--delete`; `/root/warm_rsync.sh` не используют |
 | Откат nginx после сборки | до сборки тег `nginx-simple:pre-split`; возврат — `docker tag` и `up -d --force-recreate nginx` |

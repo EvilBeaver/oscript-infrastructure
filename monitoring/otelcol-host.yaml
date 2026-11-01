@@ -52,10 +52,12 @@ receivers:
   # Читает сокет Docker (смонтирован только на чтение), в Prometheus имя контейнера — метка container_name.
   # Свопа по контейнерам нет: учёт свопа в cgroup на сервере выключен.
   # Версия API разная: Engine 18.09 на A принимает 1.25, Engine 29 на B — не ниже 1.44.
-  # На B переменную задаёт compose/node_b.compose.yaml.
+  # Коллектор 0.104.0 не разбирает ${env:ИМЯ:-значение}: суффикс после двоеточия
+  # попадает в имя переменной, и процесс сразу завершается. Значение без умолчания
+  # задаёт compose — 1.25 в compose/apps/hostmetrics.yml, 1.44 в node_b.compose.yaml.
   docker_stats:
     endpoint: unix:///var/run/docker.sock
-    api_version: ${env:DOCKER_STATS_API_VERSION:-1.25}
+    api_version: ${env:DOCKER_STATS_API_VERSION}
     collection_interval: 30s
     timeout: 20s
     metrics:

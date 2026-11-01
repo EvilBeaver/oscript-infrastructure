@@ -26,7 +26,7 @@ ansible-playbook ansible/site.yml \
 --tags portainer
 ```
 
-Голый `ansible-playbook ansible/site.yml` без тегов выполняет только задачи без `never` (проверка inventory и версий Ansible/Docker). Файрвол, WireGuard и остальное не трогает.
+Голый `ansible-playbook ansible/site.yml` без тегов выполняет только задачи без `never` (проверка inventory и версий Ansible/Docker). Файрвол, WireGuard и остальное не трогает. Проверка `inventory_is_example` стоит в `pre_tasks` с тегом `always`, поэтому она выполняется и при `--tags`, а не только на голом прогоне.
 
 Плейбук по SSH заходит на A как `deploy` и локально, тем же пользователем, приводит B к описанному состоянию.
 
@@ -59,7 +59,7 @@ node_a ansible_host=<публичный IP A> public_ip=<публичный IP A
 node_b ansible_connection=local ansible_user=deploy public_ip=<публичный IP B>
 ```
 
-Образец для `ansible-playbook --syntax-check` — [`ansible/inventory.example.ini`](../../ansible/inventory.example.ini) с `inventory_is_example=true` (прогон с ним на хосты запрещён assert'ом).
+Образец для `ansible-playbook --syntax-check` — [`ansible/inventory.example.ini`](../../ansible/inventory.example.ini) с `inventory_is_example=true`. Прогон с ним на хосты запрещён assert'ом в `pre_tasks`; тег `always` не даёт `--tags` этот assert пропустить. `--syntax-check` задачи не исполняет.
 
 `host_key_checking` в корневом `ansible.cfg` включён (файл лежит в `/opt/oscript/ansible.cfg`, чтобы подхватываться при запуске из `/opt/oscript`). Ключ хоста A принимается один раз при первом SSH, не отключается в конфиге.
 
@@ -146,6 +146,8 @@ Root по SSH на A для Ansible не открывают. Уже включё
 ### Роль firewall на A
 
 Шаблон `/etc/ufw/after.rules` повторяет эталон из [главы 2](02-as-is.md): цепочка `DOCKER-USER` и разрешения 8888 для `docker0` и `br+`. Остальные правила — модулем ufw из коллекции `community.general`: 22, 80, 443, 50000 и `8888/tcp` из docker-сетей, плюс `51820/udp` только с IP B.
+
+Если `:DOCKER-USER - [0:0]` уже есть в файле без маркеров, роль её не дублирует: старые строки `-A DOCKER-USER` (на edge ещё и `-A INPUT` на `8888` для `docker0` и `br+`) переносятся в блок `# BEGIN/END oscript DOCKER-USER`. В файле остаётся одно объявление цепочки. Второе ломает `iptables-restore` (`Chain already exists`), и `ufw reload` оставляет хост без файрвола. Повторный прогон с теми же правилами файл не меняет.
 
 Первый прогон на хосте, где ещё нет штампа `/var/lib/oscript/firewall-confirmed`:
 

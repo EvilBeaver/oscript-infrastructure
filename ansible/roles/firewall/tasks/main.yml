@@ -225,15 +225,50 @@
     - firewall
     - never
 
-- name: Цепочка DOCKER-USER в after.rules
-  ansible.builtin.blockinfile:
-    path: /etc/ufw/after.rules
-    marker: "# {mark} oscript DOCKER-USER"
-    insertbefore: '^COMMIT$'
-    block: |
-      :DOCKER-USER - [0:0]
-      {{ lookup('template', 'docker_user_' + firewall_profile + '.j2') }}
+- name: Правила DOCKER-USER для after.rules
+  ansible.builtin.set_fact:
+    firewall_docker_user_rules: "{{ lookup('template', 'docker_user_' + firewall_profile + '.j2') | trim }}"
+  tags:
+    - firewall
+    - never
+
+# blockinfile всегда вставлял своё :DOCKER-USER. На A цепочка уже объявлена без маркеров,
+# вторая строка роняет iptables-restore. Скрипт оставляет первое объявление и переписывает правила.
+- name: Файл правил DOCKER-USER для adopt
+  ansible.builtin.copy:
+    dest: "{{ firewall_state_dir }}/docker-user.rules"
+    content: |
+      {{ firewall_docker_user_rules }}
+    owner: root
+    group: root
+    mode: "0600"
+  tags:
+    - firewall
+    - never
+
+- name: Записать DOCKER-USER в after.rules без второй цепочки
+  ansible.builtin.script:
+    cmd: adopt_docker_user.sh {{ firewall_state_dir }}/docker-user.rules
+  environment:
+    FIREWALL_PROFILE: "{{ firewall_profile }}"
+    FIREWALL_DOCKER_USER_BEGIN: "{{ firewall_docker_user_marker_begin }}"
+    FIREWALL_DOCKER_USER_END: "{{ firewall_docker_user_marker_end }}"
+  register: firewall_after_rules
+  changed_when: (firewall_after_rules.stdout | trim) == 'changed'
   notify: Reload ufw
+  tags:
+    - firewall
+    - never
+
+- name: В after.rules ровно одно объявление DOCKER-USER
+  ansible.builtin.shell: |
+    set -euo pipefail
+    grep -c '^:DOCKER-USER[ \t]' /etc/ufw/after.rules || true
+  args:
+    executable: /bin/bash
+  register: firewall_docker_user_decls
+  changed_when: false
+  failed_when: (firewall_docker_user_decls.stdout | trim) != '1'
   tags:
     - firewall
     - never

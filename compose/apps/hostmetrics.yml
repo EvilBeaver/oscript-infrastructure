@@ -13,6 +13,8 @@ services:
     user: "10001:${DOCKER_GID:-995}"
     environment:
       - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript.io}
+      # Умолчание здесь — синтаксис Compose, не коллектора. Сборка B перекрывает на 1.44.
+      - DOCKER_STATS_API_VERSION=${DOCKER_STATS_API_VERSION:-1.25}
     volumes:
       - /:/hostfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

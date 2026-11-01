@@ -17,7 +17,7 @@
 | `.env` | `COMPOSE_PROJECT_NAME=os` и `COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/colocated.yml`. Режим **`770`**, владелец `deploy`, группа **`oscript`**. Так и оставить |
 | Чего в `.env` нет специально | `OTEL_HOST_NAME`, `DOCKER_GID`. В модулях подставляются `oscript.io` и группа `995` |
 | Что в `.env` осталось от старого стека | ключи вроде `GITTER_*`, `GITHUB_*`, `PGADMIN_*`, `OSHUB_*`, `POSTGRES_*`, `OSWEB_*`. Образец `env/node_a.env.example` поверх файла не копировали и не копировать |
-| Копия до правки | домашний каталог `deploy`, файл `.env.before-stage3` |
+| Копия до правки | домашний каталог `andrei`, файл `.env.before-stage3` |
 | Тома и контейнеры | тома `os_*` те же. Рабочие контейнеры `os_*_1` пересозданы и подняты. `os_opm_hub_1` и `os_opm_hub_db_1` — Exited; в окне их не удаляют, `--remove-orphans` не используют. Том `os_postgres_data` не удалять |
 | `10.9.0.0/24` | туннеля нет. В собранном config эти адреса только в `NO_PROXY` Jenkins (`compose/apps/jenkins.yml`) |
 
@@ -37,7 +37,7 @@
 - [x] Этап 3 закрыт: 11 контейнеров `os_*_1` в состоянии `Up`. `os_opm_hub_1` и `os_opm_hub_db_1` — `Exited (0)` 13 дней; не удалять, `--remove-orphans` не применять.
 - [x] Тома `os_*` на месте, томов с чужим префиксом не появилось.
 - [x] Снимки для отката лежат: `/home/deploy/ufw-before-split.txt`, `/home/deploy/iptables-before-split.txt`.
-- [ ] Копия `.env` до правки этапа 3 — **`/home/andrei/.env.before-stage3`**. В «Где остановились» назван домашний каталог `deploy`, где этого файла нет: расхождение документа с фактом.
+- [x] Копия `.env` до правки этапа 3 — **`/home/andrei/.env.before-stage3`**.
 
 ### Туннель (этап 5, часть A)
 
@@ -52,7 +52,7 @@
 
 - [x] ufw активен: снаружи `22`, `80`, `443`, `50000/tcp`; `8888/tcp` — только из `172.17.0.0/16`; `51820/udp` — только с `94.228.175.127`.
 - [x] В живых правилах `DOCKER-USER` — RETURN для established, RETURN для `80,443,50000` с `eth0`, DROP для остального с `eth0`. Случайные публикации Docker (`32777–32779`) снаружи закрыты (проверено `nmap` с B).
-- [ ] **Роль `firewall` на A не прогонялась и в текущем виде прогоняться не должна.** В `/etc/ufw/after.rules` уже есть ручной блок `:DOCKER-USER` (строка 16 и правила 32–34) без маркеров `# BEGIN/END oscript DOCKER-USER`, поэтому `blockinfile` роли вставит второй экземпляр, а `iptables-restore` на дублированном файле падает (`error creating chain 'DOCKER-USER': File exists`, проверено в изолированном netns). Тогда `ufw reload` и следующая перезагрузка A остались бы без файрвола. Порядок исправления — раздел «Фаза 2» в заметке о подготовке.
+- [ ] **Роль `firewall` на A ещё не прогонялась.** В `/etc/ufw/after.rules` уже есть ручное `:DOCKER-USER` без маркеров. Роль это забирает: объявление цепочки остаётся одно, правила `-A DOCKER-USER` и строки `8888` для `docker0`/`br+` переезжают в блок `# BEGIN/END oscript DOCKER-USER`. Повторный прогон файл не меняет. Первый прогон по-прежнему без штампа — `-e firewall_rollback_minutes=10` и вторая SSH-сессия, затем `--tags firewall_confirm`.
 - [ ] Штампа `/var/lib/oscript/firewall-confirmed` на A нет; пакеты `at` и `iptables-persistent` не установлены (роль ставит их на xenial).
 - [ ] Роль `spoofdpi` не прогонялась: `spoof-dpi.service` слушает `:::8888`, то есть `0.0.0.0`. Роль переводит bind на адрес `docker0` (`172.17.0.1`).
 - [ ] Таймера отката `at` нет — при будущем прогоне фазы 2 держать вторую SSH-сессию (`atq` на A даже не установлен).
@@ -67,9 +67,9 @@
 - [ ] Оверлей `split.yml` не подключён; `minio`, `lgtm`, `hostmetrics` всё ещё на A. Адреса `10.9.0.x` в боевом config — только `NO_PROXY` Jenkins.
 - [ ] Публикации `10.9.0.1:8080` (nginx_status) и `10.9.0.1:5432` (база для Grafana) не подняты — их включает `split.yml`. Сейчас на `10.9.0.1` не слушает ничего.
 
-### Дефект, который надо снять до окна
+### Дефект hostmetrics снят в репозитории, на A контейнер ещё на старом файле
 
-- [ ] **`hostmetrics` на A держится за старый конфиг.** Процесс запущен 12:20:58, то есть до `git pull` в 20:51, и смонтирован на прежний файл `monitoring/otelcol-host.yaml` (inode 1190985 в контейнере против 1191056 на диске). Новый файл содержит `api_version: ${env:DOCKER_STATS_API_VERSION:-1.25}`, а коллектор такой синтаксис **отвергает**: `environment variable "DOCKER_STATS_API_VERSION:-1.25" has invalid name` (воспроизведено на 0.104.0 и 0.131.0). Если контейнер пересоздать, `hostmetrics` не поднимется ни на A, ни на B. Варианты правки: числовое `api_version` на сборке либо `${env:DOCKER_STATS_API_VERSION}` без значения по умолчанию плюс переменная в обеих сборках compose.
+- [ ] **Пересоздать `os_hostmetrics_1` после выкладки этой правки.** Процесс, запущенный до неё, смонтирован на прежний inode `monitoring/otelcol-host.yaml` и сам файл не подхватит. В конфиге теперь `api_version: ${env:DOCKER_STATS_API_VERSION}` без `:-1.25`: коллектор 0.104.0 такой суффикс отвергает. Сборка A подставляет `1.25` из `compose/apps/hostmetrics.yml`. Команда: `./ops/dc.sh up -d --force-recreate hostmetrics`. Пока на диске старый файл с `:-1.25`, пересоздание по-прежнему роняет контейнер.
 
 ### Как перепроверить
 

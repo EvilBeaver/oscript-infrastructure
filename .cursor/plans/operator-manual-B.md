@@ -64,7 +64,7 @@
 ### Мусор и известный дефект на B
 
 - [ ] Контейнер `wizardly_hodgkin` (`otel/opentelemetry-collector-contrib:0.104.0`) запущен с 17:54 UTC с конфигом `/tmp/t-default.yaml` — след чьей-то проверки, к стеку `os` не относится. Удалить: `docker rm -f wizardly_hodgkin`.
-- [ ] **`hostmetrics` на B падает**: `os_hostmetrics_1` — `Exited (1)`, лог: `environment variable "DOCKER_STATS_API_VERSION:-1.25" has invalid name: must match regex ^[a-zA-Z_][a-zA-Z0-9_]*$`. Виноват `api_version: ${env:DOCKER_STATS_API_VERSION:-1.25}` в `monitoring/otelcol-host.yaml`; синтаксис со значением по умолчанию после двоеточия коллектор не принимает (воспроизведено на 0.104.0 и 0.131.0). Пока не исправлено, `./ops/dc.sh up -d` на B поднимает minio и lgtm, а hostmetrics остаётся в цикле перезапуска. Варианты правки — в чеклисте ноды A, там же подробности.
+- [ ] **Поднять `hostmetrics` после выкладки правки.** `os_hostmetrics_1` падал с `Exited (1)`: коллектор 0.104.0 не принимает `api_version: ${env:DOCKER_STATS_API_VERSION:-1.25}`. В репозитории суффикс убран, сборка B по-прежнему задаёт `DOCKER_STATS_API_VERSION=1.44`. После `git pull`: `./ops/dc.sh up -d hostmetrics` — контейнер должен остаться `Up`, не `Restarting`.
 
 ### Как перепроверить
 
