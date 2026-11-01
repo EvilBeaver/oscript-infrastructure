@@ -8,6 +8,74 @@
 
 ---
 
+## Чеклист состояния ноды B (сверено 2026-11-01, 18:10 UTC)
+
+`[x]` — проверено командами на живой ноде (`id`, `docker …`, `dpkg-query`, `systemctl`, `ufw status`, `ansible … -m ping`), не по документам.
+
+### Машина и доступ
+
+- [x] Ubuntu **24.04.1**, 2 vCPU, 3916 MiB RAM, диск `/` 59 ГБ — занято 32 %, свободно 40 ГБ. Swap **0**.
+- [x] Пользователь `deploy`: `uid=1500`, группы `oscript` (1500) и `docker` (**988**), `sudo -n` без пароля.
+- [x] Docker **29.9.1** + плагин compose **v5.6.0**; репозиторий Docker подключён (`/etc/apt/sources.list.d/docker.list`, `noble stable`).
+- [x] Базовые пакеты роли `common` на месте: `ca-certificates`, `curl`, `gnupg`, `rsync`. Каталог `/opt/oscript` — `deploy:docker 2755`.
+- [x] Ключ `deploy@B → A` создан и **авторизован на A**: в `/home/deploy/.ssh/authorized_keys` на A две строки — `hermes@oscript-deploy` (`SHA256:cfRahOUblDHdrcMjj4HJPeIzlmkkKBkITkE1GCuzSjE`) и `deploy@oscript-b` (`SHA256:V2fdDqDt0kUi3faktu34vM/h5VFYAH/PvZ624trjF98`). Второй — ключ этой ноды.
+- [x] Клон `/opt/oscript` — ветка `feature/multi-host`, коммит **`8f6bf93`**, дерево чистое. Расхождения с origin нет: прежний локальный `386dfe5` уже влит в origin, force/rebase не нужен.
+
+### Ansible
+
+- [x] `ansible-core 2.18.11` (`/home/deploy/.local/bin/ansible-playbook`), коллекции `community.docker 4.8.2` и `community.general 10.7.6`.
+- [x] `/opt/oscript/ansible/inventory.ini` — `inventory_is_example=false`; `node_a` → `ansible_user=deploy`, интерпретатор `/opt/python3/bin/python3`, ключ `/home/deploy/.ssh/oscript_deploy`; `node_b` → `ansible_connection=local`.
+- [x] `/opt/oscript-secrets/`: `vault_pass` (`0400`) и `vault.yml` (`0600`). В vault заполнены все ключи: секреты приложений, обе пары WireGuard, `portainer_agent_secret`.
+- [x] `ansible all -m ping` → `node_a pong`, `node_b pong` (проверено 18:0x UTC).
+- [ ] Защита от примерного inventory не работает при тегированных прогонах: у `pre_tasks` в `ansible/site.yml` нет тега `always`, а все команды в этой инструкции — тегированные. Прогон с `-i ansible/inventory.example.ini` проверку пройдёт мимо. Ждёт правки в git.
+
+### Этап 4 на B
+
+- [x] Роль `common` прогонялась: Docker и базовые пакеты на месте (см. выше).
+- [x] Роль `firewall` прогонялась и **подтверждена**: ufw `active`, `deny (incoming)`, из интернета только `22/tcp`; штамп `/var/lib/oscript/firewall-confirmed` лежит, очередь `at` пуста; в `/etc/ufw/after.rules` ровно одно объявление `:DOCKER-USER`; политики ip6tables — `DROP`.
+- [x] `iptables-persistent` не установлен и не ставится — на 24.04 он снимает `ufw` (`Breaks`). Правка роли — коммит `386dfe5`.
+- [x] `iperf3 3.16` установлен на обеих нодах.
+- [ ] Замер «до ufw на B» пропущен: окно ушло, пока роль ещё не была поправлена. Скорость мерилась только через туннель — **94.6–94.9 Мбит/с** (см. этап 5).
+
+### Этап 5 на B
+
+- [x] `wg0`: `10.9.0.2/24`, listen `59564`, peer `xFpsyUEMs…`, `AllowedIPs 10.9.0.1/32`, `PersistentKeepalive 25`, `latest handshake` свежий.
+- [x] `/etc/wireguard/{privatekey,wg0.conf}` — `root:root 0600`; `wg-quick@wg0` активен; drop-in Docker `/etc/systemd/system/docker.service.d/wg.conf` (`After=` и `Wants=wg-quick@wg0.service`) на месте.
+- [x] B — клиент: свой UDP-порт не слушает, входящий 51820 в ufw не открыт.
+- [ ] Перезагрузка B не проводилась — отдельное окно этапа 5 (сначала B, потом A).
+- [ ] Swap не добавлен: `free -m` показывает 0, в `/etc/fstab` записи нет. Файл `/swapfile` на 512 МиБ от 2024-11-02 лежит, но **не активен** и для LGTM мал — в окне нужен рабочий swap 2 ГБ.
+
+### Этап 6 (копия до окна) — выполнен
+
+- [x] `/var/lib/oscript-migration` (`0700 root`): `openhub-2026-11-01.dump` (1.42 МБ), `pg-restore-list.txt` (дамп открывается, `TOC Entries: 354`), `env-node-a` (копия `.env` A, `0600`), `volume-ls.txt`, `certbot-conf/`.
+- [x] Дальнейшее закрывает пункты чеклиста «B готова к этапу 7» ниже: `.env` собран вручную (13 ключей, `0640 deploy:docker`), секреты MinIO/Grafana совпадают с A по sha256.
+
+### Этап 7 (подготовка) — часть сделана, окно не открывалось
+
+- [x] `.env`: `COMPOSE_PROJECT_NAME=os`, `COMPOSE_FILE=compose/node_b.compose.yaml`, `OTEL_HOST_NAME=oscript-b`, `DOCKER_GID=988`, `NGINX_STATUS_ENDPOINT=http://10.9.0.1:8080/nginx_status` + 8 секретов.
+- [x] Тома созданы с метками Compose и **прогреты**: `os_minio_data` 2.2 ГБ (`.minio.sys`, бакеты `openhub`, `jenkins-artifacts`), `os_lgtm_data` 7.1 ГБ (`grafana`, `loki`, `prometheus`, `pyroscope`, `tempo`).
+- [x] Образ `os_minio:latest` собран на B (325 МБ, `minio RELEASE.2025-09-07T16-13-09Z`); стянуты `grafana/otel-lgtm:0.33.1` и `otel/opentelemetry-collector-contrib:0.104.0`.
+- [x] `./ops/dc.sh config` на сборке B валиден (`rc=0`).
+- [x] Пробный запуск стека B выполнялся: MinIO отдал бакеты, Grafana ответила на `10.9.0.2:3000`, метрики хоста B доходили. После проверок стек остановлен.
+- [x] `/root/warm_rsync.sh` в окне **не использовать**: в ветке `real` нет `--delete`, критерий «пустой dry-run» после него недостижим. Финальный rsync — командами этапа 7 из этой инструкции.
+- [ ] В окне не собирать MinIO повторно: `build minio` упал бы на `bullseye-security` (исправлено в `8f6bf93` — база переведена на `debian:bookworm-slim`, но образ уже собран).
+- [ ] Отдельное окно перезагрузки (B, затем A) не начато.
+
+### Мусор и известный дефект на B
+
+- [ ] Контейнер `wizardly_hodgkin` (`otel/opentelemetry-collector-contrib:0.104.0`) запущен с 17:54 UTC с конфигом `/tmp/t-default.yaml` — след чьей-то проверки, к стеку `os` не относится. Удалить: `docker rm -f wizardly_hodgkin`.
+- [ ] **`hostmetrics` на B падает**: `os_hostmetrics_1` — `Exited (1)`, лог: `environment variable "DOCKER_STATS_API_VERSION:-1.25" has invalid name: must match regex ^[a-zA-Z_][a-zA-Z0-9_]*$`. Виноват `api_version: ${env:DOCKER_STATS_API_VERSION:-1.25}` в `monitoring/otelcol-host.yaml`; синтаксис со значением по умолчанию после двоеточия коллектор не принимает (воспроизведено на 0.104.0 и 0.131.0). Пока не исправлено, `./ops/dc.sh up -d` на B поднимает minio и lgtm, а hostmetrics остаётся в цикле перезапуска. Варианты правки — в чеклисте ноды A, там же подробности.
+
+### Как перепроверить
+
+```bash
+ssh aeza-msk 'docker ps -a --format "{{.Names}}|{{.Status}}"; wg show; ufw status verbose | head -12'
+ssh aeza-msk 'sudo -u deploy bash -lc "cd /opt/oscript && git rev-parse --short HEAD && ansible all -m ping -e @/opt/oscript-secrets/vault.yml --vault-password-file /opt/oscript-secrets/vault_pass | tail -12"'
+ssh aeza-msk 'sudo du -sh /var/lib/docker/volumes/os_minio_data/_data /var/lib/docker/volumes/os_lgtm_data/_data; sudo ls -la /var/lib/oscript-migration/'
+```
+
+---
+
 ## Модель управления: что здесь делает Ansible
 
 Ansible — не постоянно работающий сервер и не часть Docker-стека. Это программа командной строки, которая запускается оператором на B, подключается к управляемым машинам и последовательно выполняет описанные в репозитории задачи.

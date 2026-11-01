@@ -25,6 +25,62 @@
 
 ---
 
+## Чеклист состояния ноды A (сверено 2026-11-01, 18:10 UTC)
+
+`[x]` — проверено командами на живой ноде (`git rev-parse`, `docker ps`, `docker inspect`, `wg show`, `ufw status verbose`, `iptables -S DOCKER-USER`, `ss -lntp`), а не по документам. Пустой `[ ]` — не сделано или сознательно не делалось.
+
+### Каталог, вход, стек
+
+- [x] `/opt/oscript` — ветка `feature/multi-host`, коммит **`8f6bf93`**. В разделе «Где остановились» выше записан `7549e12`: он устарел, `git pull` забрал ещё два коммита. Дерево отслеживаемых файлов чистое.
+- [x] `.env`: `COMPOSE_PROJECT_NAME=os` и `COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/colocated.yml`; 35 ключей; режим `770`, владелец `deploy`, группа `oscript`.
+- [x] Вход — `./ops/dc.sh`, плагин `docker compose` v2.40.3. Engine — **18.09.0** (API 1.39): не обновлять, новых флагов вида `--wait` не использовать.
+- [x] Этап 3 закрыт: 11 контейнеров `os_*_1` в состоянии `Up`. `os_opm_hub_1` и `os_opm_hub_db_1` — `Exited (0)` 13 дней; не удалять, `--remove-orphans` не применять.
+- [x] Тома `os_*` на месте, томов с чужим префиксом не появилось.
+- [x] Снимки для отката лежат: `/home/deploy/ufw-before-split.txt`, `/home/deploy/iptables-before-split.txt`.
+- [ ] Копия `.env` до правки этапа 3 — **`/home/andrei/.env.before-stage3`**. В «Где остановились» назван домашний каталог `deploy`, где этого файла нет: расхождение документа с фактом.
+
+### Туннель (этап 5, часть A)
+
+- [x] `wg0`: `10.9.0.1/24`, listen `51820`, peer `dTzhCMch…` (совпадает с `wireguard_node_b_public_key` из vault), `latest handshake` свежий, счётчики растут.
+- [x] `wg-quick@wg0` — `enabled`; drop-in `/etc/systemd/system/docker.service.d/wg.conf` (`After=` и `Wants=wg-quick@wg0.service`) на месте.
+- [x] `iperf3` установлен; пропускная способность через туннель — **94.6–94.9 Мбит/с**.
+- [x] Роль `wireguard` прогонялась с B (`--tags wg --limit node_a`). Оговорка: каталог `/etc/systemd/system/docker.service.d` пришлось создать вручную — первый прогон на нём падал.
+- [ ] Мусор подготовки не убран: `/etc/wireguard/wg0.key` и `wg0.pub` (2026-10-31, публичный ключ `aRhzorE…`) — **не** из vault. Роль их не читает (она пишет `privatekey`), но поднимать туннель ими нельзя: handshake не пройдёт.
+- [ ] Перезагрузка A не проводилась — это отдельное окно этапа 5; на A она гасит весь публичный стек.
+
+### Файрвол и SpoofDPI
+
+- [x] ufw активен: снаружи `22`, `80`, `443`, `50000/tcp`; `8888/tcp` — только из `172.17.0.0/16`; `51820/udp` — только с `94.228.175.127`.
+- [x] В живых правилах `DOCKER-USER` — RETURN для established, RETURN для `80,443,50000` с `eth0`, DROP для остального с `eth0`. Случайные публикации Docker (`32777–32779`) снаружи закрыты (проверено `nmap` с B).
+- [ ] **Роль `firewall` на A не прогонялась и в текущем виде прогоняться не должна.** В `/etc/ufw/after.rules` уже есть ручной блок `:DOCKER-USER` (строка 16 и правила 32–34) без маркеров `# BEGIN/END oscript DOCKER-USER`, поэтому `blockinfile` роли вставит второй экземпляр, а `iptables-restore` на дублированном файле падает (`error creating chain 'DOCKER-USER': File exists`, проверено в изолированном netns). Тогда `ufw reload` и следующая перезагрузка A остались бы без файрвола. Порядок исправления — раздел «Фаза 2» в заметке о подготовке.
+- [ ] Штампа `/var/lib/oscript/firewall-confirmed` на A нет; пакеты `at` и `iptables-persistent` не установлены (роль ставит их на xenial).
+- [ ] Роль `spoofdpi` не прогонялась: `spoof-dpi.service` слушает `:::8888`, то есть `0.0.0.0`. Роль переводит bind на адрес `docker0` (`172.17.0.1`).
+- [ ] Таймера отката `at` нет — при будущем прогоне фазы 2 держать вторую SSH-сессию (`atq` на A даже не установлен).
+
+### Образы и данные
+
+- [x] Образ запущенного `os_openhub_1` — `segateekb/openhub:0.23.0`, совпадает со строкой `image` в `compose/apps/openhub.yml`.
+- [x] Этап 6 (участие A): `pg_dump -Fc` базы OpenHub снят, копия `.env` и `web/certbot/conf` увезены на B, дамп с A удалён.
+- [ ] Образ nginx **не пересобран**: живой `nginx-simple:latest` — ID `7cd2054f805c` от 2026-10-15, в vhost `s3.oscript.io` и `grafana.oscript.io` стоит `proxy_pass $target_url` с `resolver`. Пересборка в окне обязательна, иначе адреса туннеля не заработают.
+- [ ] Тег `nginx-simple:pre-split` **не создан**. На тот же ID `7cd2054f805c` есть только `otel-all`; репетиция сборки лежит отдельно как `split-rehearsal` от 19:21. До окна: `docker tag nginx-simple:latest nginx-simple:pre-split`.
+- [ ] Судьба vhost `hub-old.oscript.io` не решена: в живом образе он есть (сейчас отдаёт 502), в текущем чекауте его нет — пересборка сменит ответ на 444. Решение «принять / вернуть файл» — за владельцем.
+- [ ] Оверлей `split.yml` не подключён; `minio`, `lgtm`, `hostmetrics` всё ещё на A. Адреса `10.9.0.x` в боевом config — только `NO_PROXY` Jenkins.
+- [ ] Публикации `10.9.0.1:8080` (nginx_status) и `10.9.0.1:5432` (база для Grafana) не подняты — их включает `split.yml`. Сейчас на `10.9.0.1` не слушает ничего.
+
+### Дефект, который надо снять до окна
+
+- [ ] **`hostmetrics` на A держится за старый конфиг.** Процесс запущен 12:20:58, то есть до `git pull` в 20:51, и смонтирован на прежний файл `monitoring/otelcol-host.yaml` (inode 1190985 в контейнере против 1191056 на диске). Новый файл содержит `api_version: ${env:DOCKER_STATS_API_VERSION:-1.25}`, а коллектор такой синтаксис **отвергает**: `environment variable "DOCKER_STATS_API_VERSION:-1.25" has invalid name` (воспроизведено на 0.104.0 и 0.131.0). Если контейнер пересоздать, `hostmetrics` не поднимется ни на A, ни на B. Варианты правки: числовое `api_version` на сборке либо `${env:DOCKER_STATS_API_VERSION}` без значения по умолчанию плюс переменная в обеих сборках compose.
+
+### Как перепроверить
+
+```bash
+ssh deploy@212.109.194.11 'cd /opt/oscript && git rev-parse --short HEAD; docker ps --format "{{.Names}} {{.Status}}" | sort'
+ssh deploy@212.109.194.11 'sudo -n wg show; sudo -n ufw status verbose; sudo -n iptables -S DOCKER-USER'
+ssh deploy@212.109.194.11 'docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" | grep nginx-simple'
+```
+
+---
+
 ## Общие правила на A
 
 - Работы со стеком — от **`deploy`** в **`/opt/oscript`**. `.env` в git не входит; при откате его **не** откатывают через git.
