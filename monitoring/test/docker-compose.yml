@@ -15,6 +15,7 @@ services:
     environment:
       - OTLP_ENDPOINT=127.0.0.1:14317
       - OTEL_HOST_NAME=test-host
+      - DOCKER_STATS_API_VERSION=${DOCKER_STATS_API_VERSION:-1.25}
     depends_on:
       - sink
 

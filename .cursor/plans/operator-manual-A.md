@@ -18,7 +18,7 @@
 | Чего в `.env` нет специально | `OTEL_HOST_NAME`, `DOCKER_GID`. В модулях подставляются `oscript.io` и группа `995` |
 | Что в `.env` осталось от старого стека | ключи вроде `GITTER_*`, `GITHUB_*`, `PGADMIN_*`, `OSHUB_*`, `POSTGRES_*`, `OSWEB_*`. Образец `env/node_a.env.example` поверх файла не копировали и не копировать |
 | Копия до правки | домашний каталог `deploy`, файл `.env.before-stage3` |
-| Тома и контейнеры | тома `os_*` те же. Рабочие контейнеры `os_*_1` пересозданы и подняты. `os_opm_hub_1` и `os_opm_hub_db_1` — Exited, не удалять |
+| Тома и контейнеры | тома `os_*` те же. Рабочие контейнеры `os_*_1` пересозданы и подняты. `os_opm_hub_1` и `os_opm_hub_db_1` — Exited; в окне их не удаляют, `--remove-orphans` не используют. Том `os_postgres_data` не удалять |
 | `10.9.0.0/24` | туннеля нет. В собранном config эти адреса только в `NO_PROXY` Jenkins (`compose/apps/jenkins.yml`) |
 
 Роль Ansible `app` с `app_apply=true` на A не запускать. Шаблон `env-node_a.j2` перезаписывает `.env` целиком: старые ключи пропадут, режим станет `0640`, группа — `docker`.
@@ -29,7 +29,7 @@
 
 - Работы со стеком — от **`deploy`** в **`/opt/oscript`**. `.env` в git не входит; при откате его **не** откатывают через git.
 - **`down -v` не выполнять** — тома `os_*` общие для всех этапов.
-- Плагин **`docker compose` v2.40.3** уже есть; **не обновлять**. Проверка: `docker compose version`.
+- Плагин **`docker compose` v2.40.3** уже есть; **не обновлять**. Engine — **18.09.0**. Проверка: `docker version` и `docker compose version`. Новые флаги вроде `--wait` на этом Engine не использовать.
 - Ansible-модули на A: **`/opt/python3/bin/python3 --version`** (3.12). Системный `/usr/bin/python3` (3.5.2) для Ansible не использовать.
 - Плейбуки с ролями `firewall`, `wg`, `spoofdpi` на A **запускает оператор с ноды B** (см. [operator-manual-B.md](operator-manual-B.md)). На A можно только проверять результат (`ufw status`, `wg show`, `ss`).
 
@@ -242,35 +242,86 @@ Rsync томов запускают **с B** в каталоги Docker-томо
 
 ## Этап 7 — окно сплита (действия на A)
 
-Кратко; детали — [глава 6](06-work-order.md). Координация с B обязательна.
+Кратко; общий порядок — [глава 6](06-work-order.md). Координация с B обязательна. На A заходят как `deploy`: у `andrei` нет беспарольного sudo.
 
-**Подготовка (A работает):** на B уже прогреты тома; на A в `.env` по-прежнему `colocated.yml`.
+**До окна, A продолжает работать.**
 
-**В окне на A:**
-
-1. Пауза StatusCake; при необходимости 503 на hub/s3/grafana в nginx.
-2. `./ops/dc.sh stop openhub` (писатель в MinIO).
-3. `./ops/dc.sh stop minio lgtm` (без `down -v`).
-4. После финального rsync с B — пересобрать nginx (vhost s3/grafana лежат **в образе**, на живом A ещё `proxy_pass` через переменную; без сборки туннель не заработает) и сменить оверлей в `.env`:
+1. Сверить образ OpenHub. Окно не начинают, если тег отличается от `compose/apps/openhub.yml`:
 
 ```bash
+docker inspect os_openhub_1 --format '{{.Config.Image}}'
+```
+
+2. Сохранить рабочий образ nginx и собрать новый. Vhost s3/grafana лежат в образе; живой образ от 2026-10-15 ещё использует `proxy_pass` через переменную. Сборка переписывает тег `nginx-simple:latest`, поэтому старый ID сначала получают собственный тег. Контейнер при этом не пересоздают: до окна остаётся прежний процесс.
+
+```bash
+cd /opt/oscript
+docker tag nginx-simple:latest nginx-simple:pre-split
+docker image inspect nginx:1.30.5-otel >/dev/null
 ./ops/dc.sh build nginx
+./ops/dc.sh exec nginx nginx -t
 ```
 
+Успешная сборка переводит `latest` на новый ID; при ошибке сборки тег не меняется. Новый образ в этой подготовке не запускают, оверлей не меняют. Проверяют именно новый образ, а не процесс, который ещё работает на старом:
+
 ```bash
-COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/split.yml
+docker run --rm \
+  -v /opt/oscript/web/certbot/conf:/etc/letsencrypt:ro \
+  nginx-simple:latest nginx -t
 ```
 
-5. На A:
+3. Снять передачу из контейнерной сети на B. На B в это время слушает `iperf3 -s -B 10.9.0.2 -1`. Сеть проекта — `os_default`:
 
 ```bash
-./ops/dc.sh up -d --remove-orphans
+docker run --rm --network os_default alpine:3.20 \
+  sh -c 'apk add --no-cache iperf3 && iperf3 -c 10.9.0.2 -t 10'
+```
+
+Короткий замер с хоста эту проверку не заменяет: у `docker0` MTU 1500, у `wg0` — 1420. Если передача зависла или скорость обвалилась относительно замера с хоста:
+
+```bash
+sudo iptables -t mangle -C FORWARD -o wg0 -p tcp --tcp-flags SYN,RST SYN \
+  -j TCPMSS --clamp-mss-to-pmtu \
+  || sudo iptables -t mangle -A FORWARD -o wg0 -p tcp --tcp-flags SYN,RST SYN \
+  -j TCPMSS --clamp-mss-to-pmtu
+```
+
+Правило не переживает перезагрузку. `ufw route allow` для туннеля не добавляют.
+
+**В окне на A.** Сначала останавливают писателей и только потом на B делают финальный rsync:
+
+1. `./ops/dc.sh stop openhub`, затем `./ops/dc.sh stop minio lgtm`. `down` и `down -v` нет. Дальше работает B: финальный rsync с `--delete` и `up -d` minio, lgtm, hostmetrics.
+2. Когда Grafana на B отвечает, скопировать `.env` и заменить в самом файле одну строку. Присваивание `COMPOSE_FILE=...` только в оболочке файл не меняет.
+
+```bash
+cp -a /opt/oscript/.env /opt/oscript/.env.pre-split
+```
+
+Строка после правки: `COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/split.yml`. Режим остаётся `770`, владелец `deploy`, группа `oscript`.
+
+3. Проверить рендер и поднять стек без `--remove-orphans`:
+
+```bash
+./ops/dc.sh config
+./ops/dc.sh up -d
 ./ops/dc.sh exec nginx nginx -s reload
+docker rm os_minio_1 os_lgtm_1
 ```
 
-6. Проверить, что контейнеров `os_minio_1` / `os_lgtm_1` на A **нет**; nginx и openhub ходят на B по туннелю.
+`config` содержит `minio:10.9.0.2`, `lgtm:10.9.0.2`, `10.9.0.1:8080` и `10.9.0.1:5432`. `docker rm` снимает только остановленные контейнеры переехавших сервисов; если такого контейнера уже нет, шаг считается выполненным. `os_opm_hub_1` и `os_opm_hub_db_1` остаются. Postgres пересоздаётся из-за новой публикации порта; OpenHub ждёт `pg_isready`.
 
-**Откат окна** (пока на B не писали новые данные): остановить minio/lgtm на B → вернуть на A `colocated.yml` → `./ops/dc.sh up -d` minio lgtm на старых томах.
+4. Проверить `getent hosts minio lgtm` внутри nginx (оба имени — `10.9.0.2`) и что контейнеров minio/lgtm на A нет. Тома `os_minio_data` и `os_lgtm_data` на месте.
+
+Сборка нового nginx убирает vhost `hub-old.oscript.io`: вместо 502 соединение закрывается без ответа (444). Сертификат и DNS этого имени снимают отдельно, после приёмки.
+
+**Откат**, пока B не принял новых записей: остановить minio и lgtm на B, вернуть строку `COMPOSE_FILE` из `.env.pre-split` и выполнить `./ops/dc.sh up -d`. Если тег nginx уже новый:
+
+```bash
+docker tag nginx-simple:pre-split nginx-simple:latest
+./ops/dc.sh up -d --force-recreate nginx
+```
+
+После старта сервисов на B откат — новое окно с обратным rsync. Команды — [operator-manual-B.md](operator-manual-B.md).
 
 ---
 
@@ -297,7 +348,7 @@ COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/split.yml
 | --- | --- |
 | Обновить код | `git pull` (ветка `feature/multi-host`, пока не влито в master) |
 | Поднять/пересоздать | `./ops/dc.sh up -d` |
-| Сборка nginx | `./ops/dc.sh build nginx && ./ops/dc.sh up -d nginx` |
+| Сборка nginx | `./ops/dc.sh build nginx && ./ops/dc.sh up -d nginx`. До окна этапа 7 контейнер не пересоздают: сначала тег `pre-split`, сборка и `nginx -t` нового образа |
 | Сертификат нового домена | правка `web/nginx/sites-enabled/`, затем `./add-letsencrypt-domain.sh <домен>` |
 | Логи | `./ops/dc.sh logs -f <сервис>` |
 

@@ -85,7 +85,7 @@
 ```
 
 В выводе есть `minio` и `lgtm`, имя проекта `os`, тома с префиксом `os_`, у сервисов `container_name` вида `os_<сервис>_1`. Источники bind-mount лежат под `/opt/oscript/`, кроме `/var/run/docker.sock` и корня хоста у hostmetrics. В `ports`, `extra_hosts` и `dns` адресов `10.9.0.x` нет (в `environment`, например `NO_PROXY`, они допустимы). Если `config` падает или в нём нет `minio` и `lgtm`, `up` не запускают.
-4. `./ops/dc.sh up -d`. Флага `--remove-orphans` здесь нет: `minio` и `lgtm` входят в колокацию, его ставят на этапе 7, когда эти сервисы уходят на B. Команд `down` и `down -v` нет. Бинарь v1 модульные файлы не читает; этот стек им больше не поднимают.
+4. `./ops/dc.sh up -d`. Флага `--remove-orphans` нет и на этапе 7: вместе с minio и lgtm он удалил бы остановленные контейнеры старого хаба. Команд `down` и `down -v` нет. Бинарь v1 модульные файлы не читает; этот стек им больше не поднимают.
 5. Сверить `docker ps` и `docker volume ls` со снимком до окна. На месте `os_nginx_1`, `os_site_1`, `os_jenkins_1`, `os_certbot_1`, `os_tg_bot_1`, `os_s3-sync_1`, `os_minio_1`, `os_openhub_1`, `os_openhub_db_1`, `os_lgtm_1`, `os_hostmetrics_1`. Томов с префиксом `oscript_` нет. Остановленные контейнеры старого хаба, если они ещё есть, не удаляют: их снимают по разделу «Старый хаб».
 
 Готово, когда из этой сборки открываются `oscript.io`, `hub.oscript.io`, `s3.oscript.io`, `grafana.oscript.io` и `build.oscript.io`, тома по-прежнему `os_*`, MinIO и LGTM отвечают локально на A.
@@ -130,36 +130,40 @@
 
 ## Этап 7. Окно
 
-Подготовка, A работает:
+Все команды на A выполняет `deploy` (`ssh deploy@…`). У `andrei` sudo спрашивает пароль, а rsync с B вызывает на A `sudo -n`. Engine на A — 18.09: в окне не используют `--wait` и другие флаги, которых не было в уже прошедших `config` и `up`.
 
-1. На B вручную собрать `.env` по `env/node_b.env.example` (не копией `.env` с A) и создать тома командой `up --no-start`, чтобы у них были метки Compose. Контейнеры не стартовать. Имя проекта `os`, тома `os_minio_data` и `os_lgtm_data`.
-2. Прогрев с B, локальный `sudo` и `--rsync-path="sudo -n rsync"` на A: `rsync -aHAX --numeric-ids` из `/var/lib/docker/volumes/os_minio_data/_data/` и тома lgtm прямо в `_data` этих томов на B. Без `--delete`. Это не финальная копия. Точные команды — [инструкция B](operator-manual-B.md).
-3. В git уже лежат `node_a.compose.yaml` без minio и lgtm и оверлей `overrides/split.yml` с `extra_hosts` и публикациями на туннель. `config` обоих вариантов и тесты зелёные. На A до начала окна подключён оверлей `overrides/colocated.yml` (так его оставил этап 3).
+Подготовка, A работает. Команды — [инструкция B](operator-manual-B.md) и [инструкция A](operator-manual-A.md):
+
+1. На B вручную собрать `.env` по `env/node_b.env.example` (не копией `.env` с A) и создать тома командой `up --no-start`, чтобы у них были метки Compose. Контейнеры не стартовать. Имя проекта `os`, тома `os_minio_data` и `os_lgtm_data`. Образ `os_minio`, если он уже есть, в окне не пересобирают.
+2. Прогрев с B, локальный `sudo` и `--rsync-path="sudo -n rsync"` на A: `rsync -aHAX --numeric-ids` из `/var/lib/docker/volumes/os_minio_data/_data/` и тома lgtm прямо в `_data` этих томов на B. Без `--delete`. Это не финальная копия. Скрипт `/root/warm_rsync.sh` не используют: в его режиме записи нет `--delete`.
+3. До окна на A собрать nginx и сохранить прежний тег `nginx-simple:pre-split`. При падении сборки оверлей не меняют. На B проверить свободное место (не меньше удвоенного размера двух томов плюс 5 ГБ), добавить swap 2 ГБ и снять передачу из контейнера A на `10.9.0.2`. На A сверить тег запущенного `os_openhub_1` со строкой `image` в `compose/apps/openhub.yml`.
+4. В git уже лежат `node_a.compose.yaml` без minio и lgtm и оверлей `overrides/split.yml` с `extra_hosts` и публикациями на туннель. На A до начала окна подключён оверлей `overrides/colocated.yml`.
 
 История LGTM нужна, вместе с SQLite Grafana. Живой rsync её не фиксирует; финальный проход — после stop.
 
 Окно:
 
-1. Поставить на паузу проверки StatusCake (кабинет сервиса; на нодах агента нет). Включить на nginx статическую страницу 503 для `hub.oscript.io`, `s3.oscript.io` и `grafana.oscript.io`.
-2. Остановить openhub на A (он пишет в MinIO). Jenkins, пока он пишет в облако, не останавливать.
-3. `docker compose stop minio lgtm`. Команды `down -v` здесь нет.
-4. Финальный `rsync -aHAX --numeric-ids --delete` в те же `_data` на B. Локально на B команда под `sudo`, на A — `--rsync-path="sudo -n rsync"`. Критерий совпадения — повтор того же rsync с `--dry-run --delete --itemize-changes`: stdout пустой (допустима одна строка про время каталога). `du -sb` размеры каталогов не сравнивает. После старта на B — `mc` внутри контейнера minio через `sh -c`. Команды — [инструкция B](operator-manual-B.md).
-5. На B: `up -d` (minio, lgtm, hostmetrics). Bootstrap MinIO идемпотентен и не затирает ключи. Grafana с B отвечает на `10.9.0.2:3000` (проверка с B или через SSH-туннель).
-6. На A перед сменой оверлея пересобрать образ nginx (`./ops/dc.sh build nginx`): vhost s3/grafana/status лежат в образе. Затем заменить в `.env` оверлей (`COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/split.yml`): активны `extra_hosts`, публикации `10.9.0.1:8080` и `10.9.0.1:5432`, у hostmetrics `OTLP_ENDPOINT=10.9.0.2:4317`, `up -d --remove-orphans`, reload nginx.
-7. Убедиться, что новых томов с чужим префиксом нет.
-8. Снять 503 и паузу StatusCake, когда приёмка (этап 8) по основным URL зелёная. На время окна проверки могут коротко уйти в отказ — это ожидаемо.
+1. Поставить на паузу проверки StatusCake для `s3.oscript.io` и `grafana.oscript.io` (кабинет сервиса; на нодах агента нет). Отдельную страницу 503 не собирают: это ещё одна сборка nginx, а простой и так виден по 502 остановленных upstream. Новые сборки Jenkins не запускают и дожидаются пустой очереди. Jenkins остаётся запущен: артефакты он пишет в облако, не в MinIO.
+2. Остановить openhub на A (он пишет в MinIO).
+3. `./ops/dc.sh stop minio lgtm`. Команды `down -v` здесь нет.
+4. Финальный `rsync -aHAX --numeric-ids --delete` в те же `_data` на B. Критерий совпадения — повтор того же rsync с `--dry-run --delete --itemize-changes`: stdout пустой (допустима одна строка про время каталога). `du -sb` размеры каталогов не сравнивает. После старта на B — `mc` внутри контейнера minio через `sh -c`.
+5. На B: `up -d` (minio, lgtm, hostmetrics). Bootstrap MinIO идемпотентен и не затирает ключи. Grafana с B отвечает на `10.9.0.2:3000`. С этого момента на B появляются собственные записи: быстрый откат на старые тома A больше не сохраняет их.
+6. На A: `cp -a /opt/oscript/.env /opt/oscript/.env.pre-split`. В файле заменить оверлей на `COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/split.yml`. Права `770` и владельца не менять. `./ops/dc.sh config` показывает `extra_hosts` `10.9.0.2`, публикации `10.9.0.1:8080` и `10.9.0.1:5432`. Затем `./ops/dc.sh up -d` без `--remove-orphans` и `./ops/dc.sh exec nginx nginx -s reload`. Остановленные `os_minio_1` и `os_lgtm_1` удалить явно: `docker rm os_minio_1 os_lgtm_1`. Контейнеры `os_opm_hub_1` и `os_opm_hub_db_1` не удалять.
+7. Убедиться, что новых томов с чужим префиксом нет. `openhub_db` пересоздаётся из-за публикации `5432` и поднимает OpenHub после `pg_isready`.
+8. Снять паузу StatusCake, когда приёмка (этап 8) по основным URL зелёная.
 
-Итоговая копия MinIO консистентна: финальный rsync идёт по остановленному каталогу, включая `.minio.sys`.
+Итоговая копия MinIO консистентна: финальный rsync идёт по остановленному каталогу, включая `.minio.sys`. Пересборка nginx убирает vhost `hub-old.oscript.io`: ответ сменится с 502 на 444. Сертификат и DNS снимают в разделе «Старый хаб», не в этом окне. `ufw route allow` для туннеля не добавляют: опубликованные порты и так доступны с `wg0`.
 
 ### Откат окна
 
 Его проговаривают до начала этого этапа. Пока на B не появилось записей, которых нет на A:
 
 1. Остановить minio и lgtm на B.
-2. Вернуть на A оверлей `overrides/colocated.yml` (`COMPOSE_FILE=compose/node_a.compose.yaml:compose/overrides/colocated.yml`). Локальный `OTLP_ENDPOINT=127.0.0.1:4317` задаёт сам оверлей.
-3. Запустить minio и lgtm на A со старыми томами. Тома A до этого не удаляют и не перезаписывают.
+2. Вернуть на A строку `COMPOSE_FILE` из `/opt/oscript/.env.pre-split` (оверлей `colocated.yml`). Локальный `OTLP_ENDPOINT=127.0.0.1:4317` задаёт сам оверлей.
+3. Если образ nginx уже переведён на новый тег, вернуть прежний: `docker tag nginx-simple:pre-split nginx-simple:latest`.
+4. `./ops/dc.sh up -d`, затем при смене образа `./ops/dc.sh up -d --force-recreate nginx`. Тома A до этого не удаляют и не перезаписывают. Запустить и openhub, если его останавливали.
 
-Если на B уже писали, откат — обратный rsync в новое окно.
+Если B уже принял новые записи, откат — новое окно: остановить писателей на обеих нодах и выполнить обратный rsync с `--delete`. Команды — [инструкция B](operator-manual-B.md).
 
 ## Этап 8. Приёмка
 
@@ -215,8 +219,11 @@ CoreDNS, третья нода, registry, публичный Portainer — то�
 | `up` без `COMPOSE_PROJECT_NAME=os` | пустые тома `oscript_*`. Строка уже стоит в `.env` на A, её не убирают |
 | nginx не видит MinIO на B | статический `proxy_pass` и `extra_hosts`, без подмены Docker DNS |
 | OpenHub не достучится до OTLP | на B опубликован `10.9.0.2:4318` |
-| На B нет метрик хоста | hostmetrics в сборке B |
-| Клиенты ещё ходят на hub-old | смотрим лог до снятия сертификата и DNS; редирект не обещаем |
+| На B нет метрик хоста | hostmetrics в сборке B; для Docker 29 задан `DOCKER_STATS_API_VERSION=1.44`, на A остаётся API 1.25 |
+| Клиенты ещё ходят на hub-old | сборка nginx в подготовке этапа 7 убирает vhost (502 станет 444); сертификат и DNS — после приёмки, редирект не обещаем |
+| Финальный rsync не удаляет лишнее на B | только команды инструкции B с `--delete`; `/root/warm_rsync.sh` не используют |
+| Откат nginx после сборки | до сборки тег `nginx-simple:pre-split`; возврат — `docker tag` и `up -d --force-recreate nginx` |
+| Крупная передача контейнер→B зависает | замер до окна; при провале — TCPMSS clamp на `wg0`, команда в инструкции A |
 | Bind-mount мимо `/opt/oscript` | проверка `config` на абсолютные пути |
 | `.env` не подхватился | `--project-directory` и `env_files` |
 | B или туннель упали | хаб без файлов и s3 недоступны; это принято. Откат окна, пока тома A целы |
@@ -236,7 +243,7 @@ CoreDNS, третья нода, registry, публичный Portainer — то�
 - [ ] Колокация `node_a` + `overrides/colocated.yml` по `config` совпадает с боевым монолитом; `config` с `overrides/split.yml` валиден
 - [ ] `node_b` содержит minio, lgtm, hostmetrics и валиден
 - [ ] Нет `depends_on` на сервис другой ноды
-- [ ] Образы и env openhub, nginx, hostmetrics, lgtm совпадают с боевыми, openhub остаётся 0.21.0
+- [ ] Образ запущенного `os_openhub_1` совпадает со строкой `image` в `compose/apps/openhub.yml`; env nginx, hostmetrics и lgtm совпадают с боевыми
 - [ ] `container_name: os_<сервис>_1` явно задан во всех модулях `compose/apps/*.yml`
 - [ ] `name: os`, bind-источники под `/opt/oscript`
 - [ ] Ansible: корневой `ansible.cfg`, control node B, на обеих нодах пользователь `deploy`, на A интерпретатор `/opt/python3/bin/python3`, пакеты через `apt-get`, WireGuard с handler, app через git (`version: "{{ deploy_ref }}"`) и `project_name`

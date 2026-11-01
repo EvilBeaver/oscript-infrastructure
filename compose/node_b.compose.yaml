@@ -27,7 +27,8 @@ services:
       service: hostmetrics
     environment:
       - OTLP_ENDPOINT=10.9.0.2:4317
-      - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript.io}
+      - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript-b}
+      - DOCKER_STATS_API_VERSION=1.44
 
 networks:
   openhub:

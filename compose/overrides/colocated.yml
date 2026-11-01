@@ -13,9 +13,12 @@ services:
 
   openhub:
     depends_on:
-      - openhub_db
-      - minio
-      - lgtm
+      openhub_db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      lgtm:
+        condition: service_started
 
   hostmetrics:
     environment:

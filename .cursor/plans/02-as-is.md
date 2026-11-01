@@ -35,7 +35,7 @@
 
 Роль на A Docker не переустанавливает. `daemon.json` не затирать. Любую новую возможность Compose проверять командой `docker compose config` на самой A до `up`: Engine старый.
 
-Контейнеры стека: openhub `segateekb/openhub:0.21.0`, nginx, site, lgtm `grafana/otel-lgtm:0.33.1`, hostmetrics, jenkins, minio, openhub_db (Postgres 17), tg_bot, certbot, s3-sync. Образ `segateekb/openhub:0.22.0` скачан и не запущен — модули пинят **0.21.0**. Контейнеры `opm_hub` и `opm_hub_db` в состоянии `Exited`. Сертификат, DNS и том `os_postgres_data` ещё на ноде. В репозитории сервисы, vhost и имя `hub-old.oscript.io` уже сняты.
+Контейнеры стека на момент снимка: openhub `segateekb/openhub:0.21.0`, nginx, site, lgtm `grafana/otel-lgtm:0.33.1`, hostmetrics, jenkins, minio, openhub_db (Postgres 17), tg_bot, certbot, s3-sync. Образ `segateekb/openhub:0.22.0` тогда был скачан и не запущен. Сейчас тег задаёт `compose/apps/openhub.yml` (`0.23.0`); этап 3 пересоздавал контейнер из этого файла. Перед окном этапа 7 `docker inspect os_openhub_1` сверяют с этой строкой и при расхождении окно не начинают. Контейнеры `opm_hub` и `opm_hub_db` в состоянии `Exited`. Сертификат, DNS и том `os_postgres_data` ещё на ноде. В репозитории сервисы, vhost и имя `hub-old.oscript.io` уже сняты.
 
 Тома `os_*`:
 

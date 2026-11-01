@@ -672,7 +672,7 @@ sudo find /var/lib/oscript-migration/certbot-conf/live -type l -ls
 1. Клон/обновление `/opt/oscript` на `feature/multi-host`.
 2. `.env` собрать вручную из [`env/node_b.env.example`](../../env/node_b.env.example). Значения MinIO и Grafana — из vault, те же, что на A. Файл с A поверх этого пути не копировать.
 
-Пустой `OTEL_HOST_NAME` в compose подменяется на `oscript.io`, пустой `DOCKER_GID` — на `995` (группа docker на A). В файле должно лежать число GID, не текст `$(getent ...)`. Подстановка ниже раскрывается оболочкой в момент записи.
+Пустой `OTEL_HOST_NAME` в сборке B подменяется на `oscript-b`, пустой `DOCKER_GID` — на `995` (группа docker на A, на B номер другой). В файле должно лежать число GID, не текст `$(getent ...)`. Подстановка ниже раскрывается оболочкой в момент записи. Метрики контейнеров на B идут с Docker API 1.44: это задаёт `compose/node_b.compose.yaml`, отдельной строки `.env` для этого нет.
 
 ```bash
 cd /opt/oscript
@@ -708,7 +708,27 @@ cd /opt/oscript
 
 Появляются `/var/lib/docker/volumes/os_minio_data/_data/` и `.../os_lgtm_data/_data/`.
 
-4. Прогрев **в эти каталоги**, без `--delete`. Локальный rsync на B — от root (`sudo`): `-aHAX --numeric-ids` выставляет владельцев и xattr, у `deploy` на это нет прав. `--rsync-path` поднимает `sudo` только на A. Ключ SSH — файл `deploy`, потому что локальный процесс уже root и в `~/.ssh` root ключа нет.
+Образ MinIO в окне не собирают. Если `docker image inspect os_minio` не находит образ, сборку делают один раз в этой подготовке (`./ops/dc.sh build minio`) и дожидаются успеха. База образа — `debian:bookworm-slim`.
+
+Перед прогревом проверить диск и память:
+
+```bash
+df -h /
+free -m
+```
+
+Свободного места нужно не меньше удвоенного размера `os_minio_data` и `os_lgtm_data` на A плюс 5 ГБ. Swap на B изначально нет; файл на 2 ГБ добавляют до старта LGTM:
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -m
+```
+
+4. Прогрев **в эти каталоги**, без `--delete`. Локальный rsync на B — от root (`sudo`): `-aHAX --numeric-ids` выставляет владельцев и xattr, у `deploy` на это нет прав. `--rsync-path` поднимает `sudo` только на A. Ключ SSH — файл `deploy`, потому что локальный процесс уже root и в `~/.ssh` root ключа нет. `/root/warm_rsync.sh` не запускают: его запись не удаляет файлы, которые есть только на B, и проверка dry-run после него не сходится.
 
 ```bash
 RSYNC_SSH='ssh -i /home/deploy/.ssh/oscript_deploy -o UserKnownHostsFile=/home/deploy/.ssh/known_hosts'
@@ -772,7 +792,27 @@ curl -s -o /dev/null -w '%{http_code}\n' http://10.9.0.2:3000/
   'mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" && mc ls local/openhub'
 ```
 
-После этого на **A** оператор переключает оверлей на **`split.yml`** (см. manual A).
+`./ops/dc.sh ps` показывает `os_hostmetrics_1` в состоянии Up, не Restarting. После этого на **A** оператор переключает оверлей на **`split.yml`** (см. manual A). Старт этих контейнеров — точка, после которой быстрый возврат на тома A уже не сохраняет новые записи B.
+
+### Откат после записей на B
+
+Это отдельное окно. Сначала останавливают openhub на A и minio/lgtm на B. Затем с B, тем же ключом, данные толкают обратно; `--delete` убирает на A файлы, которых на B уже нет:
+
+```bash
+RSYNC_SSH='ssh -i /home/deploy/.ssh/oscript_deploy -o UserKnownHostsFile=/home/deploy/.ssh/known_hosts'
+
+sudo rsync -aHAX --numeric-ids --delete \
+  --rsync-path="sudo -n rsync" -e "$RSYNC_SSH" \
+  /var/lib/docker/volumes/os_minio_data/_data/ \
+  deploy@<IP_A>:/var/lib/docker/volumes/os_minio_data/_data/
+
+sudo rsync -aHAX --numeric-ids --delete \
+  --rsync-path="sudo -n rsync" -e "$RSYNC_SSH" \
+  /var/lib/docker/volumes/os_lgtm_data/_data/ \
+  deploy@<IP_A>:/var/lib/docker/volumes/os_lgtm_data/_data/
+```
+
+Пустой `rsync --dry-run --delete --itemize-changes` в ту же сторону — критерий совпадения. Дальше на A возвращают `colocated.yml` и поднимают minio, lgtm и openhub, как в [operator-manual-A.md](operator-manual-A.md).
 
 ---
 
@@ -867,4 +907,5 @@ ansible-playbook ansible/site.yml $VAULT $REF --tags portainer
 - Не коммитить `inventory.ini`, `vault.yml`, `vault_pass` в git.
 - Не запускать плейбук с `inventory.example.ini` и `inventory_is_example=true` на боевые хосты.
 - Не публиковать MinIO/Grafana/OTLP на `0.0.0.0` публичного интерфейса — только туннель и ufw по ролям.
+- Не копировать тома через `/root/warm_rsync.sh` и не собирать MinIO повторно в окне, если образ `os_minio` уже есть.
 - Не удалять dump, каталог `/var/lib/oscript-migration/` и тома `os_minio_data` / `os_lgtm_data` до успешной приёмки этапа 8.

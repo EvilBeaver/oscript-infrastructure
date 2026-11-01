@@ -63,7 +63,8 @@ services:
     volumes:
       - openhub_data:/var/lib/openhub
     depends_on:
-      - openhub_db
+      openhub_db:
+        condition: service_healthy
     networks:
       - default
       - openhub

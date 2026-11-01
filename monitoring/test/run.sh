@@ -35,6 +35,18 @@ wait_sink() {
   return 1
 }
 
+# Engine 29 отвергает клиент API 1.25. Пока минимум демона выше 1.25, берём 1.44.
+min_api="$(docker version --format '{{.Server.MinAPIVersion}}' 2>/dev/null || true)"
+min_minor="$(printf '%s' "${min_api:-1.25}" | cut -d. -f2)"
+case "$min_minor" in
+  ''|*[!0-9]*) min_minor=25 ;;
+esac
+if [ "$min_minor" -gt 25 ]; then
+  export DOCKER_STATS_API_VERSION="${DOCKER_STATS_API_VERSION:-1.44}"
+else
+  export DOCKER_STATS_API_VERSION="${DOCKER_STATS_API_VERSION:-1.25}"
+fi
+
 $DC up -d
 
 for metric in system.cpu.time system.cpu.load_average.1m system.memory.usage \
@@ -55,5 +67,9 @@ echo "OK: без overlay"
 sink_logs | grep -qF -- "-> device: Str(docker0)" \
   || fail "в сетевых метриках нет docker0 — скрейпер видит сеть контейнера, а не хоста"
 echo "OK: сеть хоста"
+
+wait_sink "Name: container.cpu.usage.total" \
+  || fail "метрика контейнера container.cpu.usage.total не дошла"
+echo "OK: container.cpu.usage.total"
 
 echo "hostmetrics test OK."
