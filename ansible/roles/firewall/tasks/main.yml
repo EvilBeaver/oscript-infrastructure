@@ -157,6 +157,8 @@
     - firewall
     - never
 
+# На Ubuntu 24.04 пакет не ставить: ufw Breaks iptables-persistent, и apt снимает ufw.
+# При IPV6=no политики ip6tables на каждом старте пишет ufw-init.
 - name: iptables-persistent (Xenial, без python3-apt)
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/../../tasks/apt_install.yml"
@@ -167,17 +169,6 @@
   vars:
     apt_package: iptables-persistent
   when: ansible_distribution_release == 'xenial'
-  tags:
-    - firewall
-    - never
-
-- name: iptables-persistent для сохранения ip6tables
-  ansible.builtin.apt:
-    name: iptables-persistent
-    state: present
-  environment:
-    DEBIAN_FRONTEND: noninteractive
-  when: ansible_distribution_release != 'xenial'
   tags:
     - firewall
     - never

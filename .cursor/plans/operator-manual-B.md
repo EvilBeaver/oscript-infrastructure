@@ -414,6 +414,27 @@ iperf3 -c <IP_B> -t 30
 
 ### 4.3. Роль `firewall` только на B
 
+На Ubuntu 24.04 роль не ставит `iptables-persistent`: пакет конфликтует с `ufw` (`Breaks`), и apt снимает `ufw`. При `IPV6=no` DROP в ip6tables записывает сам ufw в момент включения. A в этом заходе не трогать.
+
+Если предыдущий прогон уже снимал `ufw`, до нового запуска на B:
+
+```bash
+# очередь пуста, либо в ней нет задания «ufw disable»
+atq
+sudo rm -f /var/lib/oscript/firewall-rollback.job
+
+sudo apt-get purge -y iptables-persistent netfilter-persistent
+
+# ожидается: install ok installed ... 0.36.2-6
+dpkg-query -W -f '${Status} ${Version}\n' ufw
+# если пакета нет: sudo apt-get install -y ufw
+
+# до прогона декларации цепочки быть не должно
+grep -c '^:DOCKER-USER' /etc/ufw/after.rules
+```
+
+Файл `firewall-rollback.job` со старым id роль передаёт в `atrm` и может снять чужое задание `at`. Каталог `/opt/oscript` к этому моменту уже содержит правку роли: задачи «iptables-persistent для сохранения ip6tables» в `ansible/roles/firewall/tasks/main.yml` нет. Иначе прогон снова снимет `ufw`.
+
 Держите SSH-сессию. Первый раз на хосте:
 
 ```bash
@@ -422,14 +443,22 @@ ansible-playbook ansible/site.yml $VAULT $REF \
   -e firewall_rollback_minutes=10
 ```
 
-Проверить `ssh` с A и с рабочей станции. Затем снять таймер:
+Проверить SSH с A и с рабочей станции. До `firewall_confirm` на B:
+
+- `ufw` по-прежнему `0.36.2-6`, прогон без `failed`;
+- `sudo ufw status verbose` — `Status: active`, `Default: deny (incoming)`, из интернета открыт только `22/tcp`;
+- `sudo ip6tables -S` — политики `DROP`, ACCEPT на `lo`; правила conntrack нет (его затирает включение ufw);
+- `grep -c '^:DOCKER-USER' /etc/ufw/after.rules` — `1`;
+- `atq` показывает задание, `/var/lib/oscript/firewall-rollback.job` содержит его id.
+
+Затем снять таймер:
 
 ```bash
 ansible-playbook ansible/site.yml $VAULT $REF \
   --tags firewall_confirm --limit node_b
 ```
 
-С интернета на B роль открывает только **22/tcp**. UDP 51820 на B не слушается и в ufw не разрешается.
+После подтверждения `atq` пуст, есть файл `/var/lib/oscript/firewall-confirmed`. С интернета на B роль открывает только **22/tcp**. UDP 51820 на B не слушается и в ufw не разрешается.
 
 ### 4.4. Диск
 

@@ -168,7 +168,7 @@ ansible-playbook ansible/site.yml \
 
 Это снимает задание `at` и ставит штамп. Повторный `--tags firewall` таймер уже не требует.
 
-Пакеты `at` и `iptables-persistent` на Xenial ставятся через `apt-get` (`ansible/tasks/apt_install.yml`), не модулем `ansible.builtin.apt`: у `/opt/python3/bin/python3` нет `python3-apt`. 22/tcp разрешается до `ufw enable`. Держите вторую SSH-сессию, пока не прошёл `firewall_confirm`.
+Пакеты `at` и `iptables-persistent` на Xenial ставятся через `apt-get` (`ansible/tasks/apt_install.yml`), не модулем `ansible.builtin.apt`: у `/opt/python3/bin/python3` нет `python3-apt`. На Ubuntu 24.04 роль `iptables-persistent` не ставит: пакет `ufw` объявляет с ним `Breaks`, и apt снимает `ufw`. При `IPV6=no` DROP в ip6tables на каждом старте записывает сам ufw. 22/tcp разрешается до `ufw enable`. Держите вторую SSH-сессию, пока не прошёл `firewall_confirm`.
 
 Опубликованные на адрес туннеля порты (`10.9.0.1:5432`, `10.9.0.1:8080`) идут через цепочки Docker. Правило `DOCKER-USER` с `-i eth0` их для трафика с `wg0` не закрывает и закрывает попытку зайти на них с интернета.
 
