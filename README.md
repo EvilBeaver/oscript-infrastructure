@@ -2,7 +2,7 @@
 
 Конфигурация и артефакты для сервисов экосистемы [OneScript](https://oscript.io). Прод — **две ноды** (A — публичный edge, B — MinIO, Grafana, hostmetrics), каталог стека `/opt/oscript`, оркестрация — **Docker Compose v2** через [`ops/dc.sh`](ops/dc.sh).
 
-Пошаговый план миграции и Ansible — [`.cursor/plans/README.md`](.cursor/plans/README.md). Краткая справка для агентов — [`AGENTS.md`](AGENTS.md).
+Краткая справка для агентов — [`AGENTS.md`](AGENTS.md).
 
 ## Публичные сервисы
 
@@ -48,7 +48,7 @@ ansible-playbook ansible/site.yml \
   --tags common --limit node_b
 ```
 
-Проверка каркаса без хостов: `./ansible/test/run.sh`. Ручная подготовка B — глава 4 в [`.cursor/plans/04-ansible.md`](.cursor/plans/04-ansible.md).
+Проверка каркаса без хостов: `./ansible/test/run.sh`.
 
 ## Тесты
 
@@ -60,5 +60,4 @@ ansible-playbook ansible/site.yml \
 
 ## Дополнительно
 
-- Перенос метаданных opm-hub → OpenHub — [`openhub-migration/README.md`](openhub-migration/README.md)
 - OpenHub с нуля — `openhub.env.example`, первый админ через `/setup` на hub.oscript.io

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Инфраструктура [oscript.io](https://oscript.io) и поддоменов `*.oscript.io` — две ноды (A — edge, B — worker), один каталог стека `/opt/oscript`, сборка через модульный Compose и `ops/dc.sh`. Подробный порядок работ — [`.cursor/plans/README.md`](.cursor/plans/README.md).
+Инфраструктура [oscript.io](https://oscript.io) и поддоменов `*.oscript.io` — две ноды (A — edge, B — worker), один каталог стека `/opt/oscript`, сборка через модульный Compose и `ops/dc.sh`.
 
 ## Стек
 
@@ -61,7 +61,7 @@ ansible-playbook ansible/site.yml \
   --tags common
 ```
 
-Роли, меняющие хост, помечены тегом `never` и без `--tags` не выполняются. В `--tags` передают **только** тег роли (`common`, `firewall`, `wg`, …), без `never`: иначе выполнятся все роли с `never`. На A модули Ansible — `/opt/python3/bin/python3`. Подробности — [`.cursor/plans/04-ansible.md`](.cursor/plans/04-ansible.md).
+Роли, меняющие хост, помечены тегом `never` и без `--tags` не выполняются. В `--tags` передают **только** тег роли (`common`, `firewall`, `wg`, …), без `never`: иначе выполнятся все роли с `never`. На A модули Ansible — `/opt/python3/bin/python3`.
 
 ## Типовые задачи
 
@@ -76,8 +76,6 @@ ansible-playbook ansible/site.yml \
 ### OpenHub
 
 Переменные — в `.env` и `compose/apps/openhub.yml` (имена по правилу хаба: точка → `_`, внутреннее `_` удваивается). Первый запуск: образцы env → DNS → certbot → MinIO → роль `grafana_ro` → `./ops/dc.sh up -d openhub` → `/setup`.
-
-Метаданные opm-hub уже перенесены: [`openhub-migration/README.md`](openhub-migration/README.md).
 
 ### Мониторинг
 
@@ -107,8 +105,6 @@ Bootstrap: `minio/bootstrap.sh`. Политики: `minio/policies/`. Smoke: `mi
 
 | Тема | Документ |
 | --- | --- |
-| порядок миграции на две ноды | [`.cursor/plans/README.md`](.cursor/plans/README.md) |
-| перенос метаданных в OpenHub | [`openhub-migration/README.md`](openhub-migration/README.md) |
 | OTel, robots, rate limit hub | `web/nginx/conf.d/otel.conf`, `hub-limits.conf`; `./web/nginx/test/run.sh` |
 | роль БД Grafana | `monitoring/grafana-db-role.sql`, `monitoring/grafana-datasource-openhub-db.yaml` |
 | переменные OpenHub / MinIO | `openhub.env.example`, `env/node_*.env.example`, `minio/.env.example` |
