@@ -1,6 +1,7 @@
 services:
   site:
     container_name: os_site_1
+    restart: unless-stopped
     image: oscript/backend
     ports:
       - "3030"

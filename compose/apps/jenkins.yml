@@ -1,6 +1,7 @@
 services:
   jenkins:
     container_name: os_jenkins_1
+    restart: unless-stopped
     build: ../../jenkins
     image: osjenkins
     environment:
