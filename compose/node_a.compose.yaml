@@ -1,0 +1,23 @@
+name: os
+
+include:
+  - compose/apps/nginx.yml
+  - compose/apps/site.yml
+  - compose/apps/jenkins.yml
+  - compose/apps/certbot.yml
+  - compose/apps/tg_bot.yml
+  - compose/apps/s3-sync.yml
+  - compose/apps/openhub.yml
+  - compose/apps/openhub_db.yml
+  - compose/apps/hostmetrics.yml
+
+networks:
+  openhub:
+
+volumes:
+  web_content:
+  jenkins_home:
+  # Данные бывшего opm_hub_db. Сервис снят, том не удалять.
+  postgres_data:
+  openhub_data:
+  openhub_postgres_data:

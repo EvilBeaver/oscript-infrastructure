@@ -1,0 +1,26 @@
+---
+- name: Снять задание at отката firewall
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ -f "{{ firewall_rollback_job_file }}" ]; then
+      job=$(cat "{{ firewall_rollback_job_file }}")
+      atrm "$job" 2>/dev/null || true
+      rm -f "{{ firewall_rollback_job_file }}"
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags:
+    - firewall_confirm
+    - never
+
+- name: Отметить firewall как подтверждённый
+  ansible.builtin.file:
+    path: "{{ firewall_confirmed_stamp }}"
+    state: touch
+    owner: root
+    group: root
+    mode: "0644"
+  tags:
+    - firewall_confirm
+    - never

@@ -1,0 +1,7 @@
+---
+# Контроллер (нода B): pipx install 'ansible-core==2.18.11', не пакет ansible из apt Noble.
+collections:
+  - name: community.docker
+    version: "4.8.2"
+  - name: community.general
+    version: "10.7.6"

@@ -1,0 +1,15 @@
+[Interface]
+Address = {{ wireguard_address_node_a if inventory_hostname == 'node_a' else wireguard_address_node_b }}/24
+PrivateKey = {{ wireguard_private_key_for_config }}
+MTU = {{ wireguard_mtu }}
+{% if inventory_hostname == 'node_a' %}
+ListenPort = {{ wireguard_port }}
+{% endif %}
+
+[Peer]
+PublicKey = {{ wireguard_node_b_public_key if inventory_hostname == 'node_a' else wireguard_node_a_public_key }}
+{% if inventory_hostname == 'node_b' %}
+Endpoint = {{ hostvars['node_a'].public_ip }}:{{ wireguard_port }}
+PersistentKeepalive = 25
+{% endif %}
+AllowedIPs = {{ wireguard_address_node_b if inventory_hostname == 'node_a' else wireguard_address_node_a }}/32

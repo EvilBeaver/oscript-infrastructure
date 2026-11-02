@@ -1,0 +1,3 @@
+-A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j RETURN
+-A DOCKER-USER -i wg0 -j RETURN
+-A DOCKER-USER -i {{ firewall_wan_if }} -j DROP

@@ -1,0 +1,19 @@
+services:
+  nginx:
+    container_name: os_nginx_1
+    build: ../../web/nginx
+    image: nginx-simple
+    restart: unless-stopped
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - web_content:/var/www/
+      - ../../web/certbot/conf:/etc/letsencrypt/
+      - ../../web/certbot/www:/var/www/certbot
+      - ../../logs/nginx:/var/log/nginx
+    depends_on:
+      - site
+      - certbot
+      - jenkins

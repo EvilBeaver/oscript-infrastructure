@@ -1,0 +1,32 @@
+services:
+{% if inventory_hostname == 'node_b' %}
+  portainer:
+    image: portainer/portainer-ce:{{ portainer_version }}
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "{{ wireguard_address_node_b }}:9443:9443"
+    environment:
+      - AGENT_SECRET={{ portainer_agent_secret }}
+    volumes:
+      - portainer_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+{% endif %}
+{% if inventory_hostname == 'node_a' %}
+  portainer_agent:
+    image: portainer/agent:{{ portainer_version }}
+    container_name: portainer_agent
+    restart: unless-stopped
+    ports:
+      - "{{ wireguard_address_node_a }}:9001:9001"
+    environment:
+      - AGENT_SECRET={{ portainer_agent_secret }}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+{% endif %}
+
+volumes:
+{% if inventory_hostname == 'node_b' %}
+  portainer_data:
+{% endif %}

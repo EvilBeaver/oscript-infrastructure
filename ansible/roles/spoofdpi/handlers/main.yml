@@ -1,0 +1,6 @@
+---
+- name: Restart spoof-dpi
+  ansible.builtin.systemd:
+    name: spoof-dpi.service
+    state: restarted
+    daemon_reload: true

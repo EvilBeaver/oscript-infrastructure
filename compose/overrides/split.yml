@@ -1,0 +1,21 @@
+services:
+  nginx:
+    ports:
+      - "10.9.0.1:8080:8080"
+    extra_hosts:
+      - "minio:10.9.0.2"
+      - "lgtm:10.9.0.2"
+
+  openhub:
+    extra_hosts:
+      - "minio:10.9.0.2"
+      - "lgtm:10.9.0.2"
+
+  openhub_db:
+    ports:
+      - "10.9.0.1:5432:5432"
+
+  hostmetrics:
+    environment:
+      - OTLP_ENDPOINT=10.9.0.2:4317
+      - OTEL_HOST_NAME=${OTEL_HOST_NAME:-oscript.io}

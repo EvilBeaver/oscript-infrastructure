@@ -1,0 +1,28 @@
+---
+# Образец имён для /opt/oscript-secrets/vault.yml (ansible-vault). Значения задать на B.
+# site / tg_bot / s3-sync / openhub (нода A)
+publish_secret: ""
+TELEGRAM_TOKEN: ""
+S3_ACCESS_KEY_ID: ""
+S3_SECRET_ACCESS_KEY: ""
+S3_BUCKET: ""
+OPENHUB_DB_PASSWORD: ""
+OPENHUB_S3_ACCESS_KEY: ""
+OPENHUB_S3_SECRET_KEY: ""
+
+# MinIO / Grafana (A колокация и B)
+MINIO_ROOT_USER: ""
+MINIO_ROOT_PASSWORD: ""
+JENKINS_S3_ACCESS_KEY: ""
+JENKINS_S3_SECRET_KEY: ""
+GRAFANA_ADMIN_PASSWORD: ""
+GRAFANA_DB_PASSWORD: ""
+
+# WireGuard (закрытые ключи — только в vault, не в git)
+wireguard_node_a_private_key: ""
+wireguard_node_a_public_key: ""
+wireguard_node_b_private_key: ""
+wireguard_node_b_public_key: ""
+
+# Portainer (один секрет на server и agent)
+portainer_agent_secret: ""

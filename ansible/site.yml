@@ -1,0 +1,28 @@
+---
+- name: Oscript infrastructure
+  hosts: oscript
+  pre_tasks:
+    # always: иначе --tags common|firewall|wg|… пропускает проверку, и примерный
+    # inventory доходит до ролей. Снимается только явным --skip-tags always.
+    - name: Запретить прогон с примером inventory
+      ansible.builtin.assert:
+        that:
+          - inventory_is_example is defined
+          - not (inventory_is_example | bool)
+        fail_msg: "Нужен боевой inventory с inventory_is_example=false"
+      tags:
+        - always
+
+  roles:
+    # Теги задач — внутри ролей (в том числе never). На роли их не вешать:
+    # тег роли наследуется всеми задачами, включая firewall_confirm, и --tags firewall
+    # тогда подтверждает файрвол до таймера отката.
+    # --tags <роль>,never запускает ВСЕ роли с тегом never (never — обычный тег, выборка по ИЛИ).
+    # Нужная роль: --tags firewall | --tags wg | --tags common — без never.
+    - role: common
+    - role: firewall
+    - role: spoofdpi
+      when: spoofdpi_enabled | default(false) | bool
+    - role: wireguard
+    - role: app
+    - role: portainer

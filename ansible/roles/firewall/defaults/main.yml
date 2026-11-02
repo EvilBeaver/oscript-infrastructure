@@ -1,0 +1,6 @@
+---
+firewall_state_dir: /var/lib/oscript
+firewall_confirmed_stamp: "{{ firewall_state_dir }}/firewall-confirmed"
+firewall_rollback_job_file: "{{ firewall_state_dir }}/firewall-rollback.job"
+firewall_docker_user_marker_begin: "# BEGIN oscript DOCKER-USER"
+firewall_docker_user_marker_end: "# END oscript DOCKER-USER"

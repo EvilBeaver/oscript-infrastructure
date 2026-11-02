@@ -34,6 +34,10 @@ services:
     depends_on:
       certs:
         condition: service_completed_successfully
+      backend:
+        condition: service_started
+      collector:
+        condition: service_started
 
   backend:
     image: traefik/whoami:v1.10
@@ -42,10 +46,13 @@ services:
       default:
         aliases:
           - openhub
+          - minio
 
   collector:
     # contrib — ради receiver nginx; поверх тестового конфига тот же оверлей, что монтируется в lgtm
     image: otel/opentelemetry-collector-contrib:0.104.0
+    environment:
+      - NGINX_STATUS_ENDPOINT=http://nginx:8080/nginx_status
     command:
       - --config=/etc/otelcol/config.yaml
       - --config=/etc/otelcol/otelcol-nginx.yaml

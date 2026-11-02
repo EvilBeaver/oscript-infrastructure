@@ -1,0 +1,19 @@
+services:
+  openhub_db:
+    container_name: os_openhub_db_1
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=openhub
+      - POSTGRES_DB=openhub
+      - POSTGRES_PASSWORD=${OPENHUB_DB_PASSWORD}
+    volumes:
+      - openhub_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openhub -d openhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - openhub

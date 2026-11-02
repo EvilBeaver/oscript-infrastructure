@@ -1,0 +1,31 @@
+---
+project_name: os
+stack_dir: /opt/oscript
+
+ansible_core_version_expected: "2.18.11"
+community_docker_version_expected: "4.8.2"
+community_general_version_expected: "10.7.6"
+
+wireguard_network: "10.9.0.0/24"
+wireguard_port: 51820
+wireguard_mtu: 1420
+wireguard_address_node_a: "10.9.0.1"
+wireguard_address_node_b: "10.9.0.2"
+
+# Карта размещения (сервис → нода); include в compose остаётся явным в node_*.compose.yaml.
+service_placement:
+  nginx: node_a
+  site: node_a
+  jenkins: node_a
+  certbot: node_a
+  tg_bot: node_a
+  s3-sync: node_a
+  openhub: node_a
+  openhub_db: node_a
+  minio: node_b
+  lgtm: node_b
+  hostmetrics: [node_a, node_b]
+
+app_checkout: false
+app_apply: false
+app_compose_up: false

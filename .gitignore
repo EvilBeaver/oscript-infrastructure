@@ -5,3 +5,6 @@ logs/
 logs/**/*.log
 web/certbot/conf/
 bot/oscript_modules
+ansible/inventory.ini
+**/vault.yml
+vault_pass*

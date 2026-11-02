@@ -39,13 +39,10 @@ server {
     client_max_body_size 500M;
     proxy_redirect off;
 
-    resolver 127.0.0.11 valid=30s;
-
     location / {
         sendfile off;
 
-        set $target_url http://minio:9000;
-        proxy_pass $target_url;
+        proxy_pass http://minio:9000;
 
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $http_host;
