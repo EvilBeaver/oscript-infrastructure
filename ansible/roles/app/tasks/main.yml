@@ -57,16 +57,48 @@
     - app
     - never
 
-# 2755 только у каталогов (setgid, группа docker). Mode файлов не трогать:
-# recurse file+2755 делает privkey.pem и .env читаемыми для всех.
+# 2775 только у каталогов (setgid, группа oscript — участники группы правят репозиторий).
+# Mode файлов не трогать: recurse file+2775 делает privkey.pem и .env читаемыми для всех.
 - name: Владелец дерева стека
   ansible.builtin.shell: |
     set -euo pipefail
-    find "{{ stack_dir }}" -type d -exec chown deploy:docker {} +
-    find "{{ stack_dir }}" -type d -exec chmod 2755 {} +
-    find "{{ stack_dir }}" -type f -exec chown deploy:docker {} +
+    find "{{ stack_dir }}" -type d -exec chown deploy:oscript {} +
+    find "{{ stack_dir }}" -type d -exec chmod 2775 {} +
+    find "{{ stack_dir }}" -type f -exec chown deploy:oscript {} +
   args:
     executable: /bin/bash
+  when: app_checkout | bool or app_apply | bool
+  tags:
+    - app
+    - never
+
+# Групповая запись в .git: без sharedRepository=group git пишет файлы 0644, и первый же
+# git gc/pack-refs возвращает reflog в 0644 — участник группы получает
+# «unable to append to '.git/logs/HEAD': Permission denied». Режим «group» — это umask 002
+# для всего, что git создаёт сам (файлы 664, каталоги 2775).
+- name: Групповой режим git в репозитории стека
+  ansible.builtin.command:
+    cmd: git config core.sharedRepository group
+    chdir: "{{ stack_dir }}"
+  become: false
+  changed_when: false
+  when: app_checkout | bool or app_apply | bool
+  tags:
+    - app
+    - never
+
+# Существующие reflog-файлы git сам не пересоздаёт: в файл 0644 участник группы писать
+# не может, поэтому правим режим руками (дальше его держит sharedRepository).
+- name: Reflog-файлы репозитория доступны группе на запись
+  ansible.builtin.shell: |
+    set -euo pipefail
+    [ -d "{{ stack_dir }}/.git/logs" ] || exit 0
+    find "{{ stack_dir }}/.git/logs" -type d -exec chmod g+sw {} +
+    find "{{ stack_dir }}/.git/logs" -type f -exec chmod g+w {} +
+  args:
+    executable: /bin/bash
+  become: false
+  changed_when: false
   when: app_checkout | bool or app_apply | bool
   tags:
     - app
@@ -158,8 +190,8 @@
     src: "env-{{ inventory_hostname }}.j2"
     dest: "{{ stack_dir }}/.env"
     owner: deploy
-    group: docker
-    mode: "0640"
+    group: oscript
+    mode: "0770"
   no_log: true
   diff: false
   when: app_apply | bool

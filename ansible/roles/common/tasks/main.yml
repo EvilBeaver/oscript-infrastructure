@@ -109,8 +109,8 @@
     path: "{{ stack_dir }}"
     state: directory
     owner: deploy
-    group: docker
-    mode: "2755"
+    group: oscript
+    mode: "2775"
   when: inventory_hostname == 'node_b'
   tags:
     - common
