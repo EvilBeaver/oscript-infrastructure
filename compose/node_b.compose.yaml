@@ -33,6 +33,11 @@ services:
 networks:
   openhub:
 
+# external — защита от `down -v` (см. README → «Тома и down -v»).
 volumes:
   minio_data:
+    external: true
+    name: os_minio_data
   lgtm_data:
+    external: true
+    name: os_lgtm_data

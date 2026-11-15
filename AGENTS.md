@@ -79,7 +79,11 @@ ansible-playbook ansible/site.yml \
 
 - Правки контента/вёрстки: push в репо сайта → пайплайн Jenkins → готово.
 - `./ops/dc.sh up -d site` — **только** при изменениях кода бэкенда (и при первом включении тома).
-- Разовая настройка тома: `./ops/dc.sh config` → `./ops/dc.sh up -d site` (Docker сам наполнит пустой том содержимым `/app/data/wwwroot` из образа) → `docker volume ls | grep wwwroot` должен показать `os_wwwroot`. Имя обязано совпадать с `WWWROOT_VOLUME` в `Jenkinsfile` сайта.
+- Разовая настройка тома: `os_wwwroot` объявлен `external`, поэтому compose его не создаёт — на новой ноде сначала `docker volume create os_wwwroot`, затем `./ops/dc.sh up -d site`. Наполняет том Jenkins (`Publish content`); до первой публикации статику из образа кладут вручную (`docker run --rm -v os_wwwroot:/dst --entrypoint sh oscript/backend -c 'cp -a /app/data/wwwroot/. /dst/'`). Имя обязано совпадать с `WWWROOT_VOLUME` в `Jenkinsfile` сайта.
+
+### Тома
+
+Все тома с данными (`wwwroot`, `web_content`, `jenkins_home`, `postgres_data`, `openhub_*`, на B — `minio_data`, `lgtm_data`) объявлены `external: true` с явным `name:`, поэтому `./ops/dc.sh down -v` их не удаляет — только контейнеры и сети. Плата: compose их не создаёт, на новой ноде нужен `docker volume create` перед первым `up`. Таблица имён — README → «Тома и защита от `down -v`».
 
 ### OpenHub
 

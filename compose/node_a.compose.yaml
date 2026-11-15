@@ -14,13 +14,28 @@ include:
 networks:
   openhub:
 
+# Все тома с данными — external с явным именем: compose их не создаёт и не удаляет,
+# поэтому `./ops/dc.sh down -v` сносит только контейнеры и сети. Тома должны
+# существовать до первого `up` (см. README → «Тома и down -v»).
 volumes:
-  # Статика сайта (server.rootDir/wwwroot). Имя тома на хосте — os_wwwroot,
-  # совпадает с WWWROOT_VOLUME в Jenkinsfile сайта.
+  # Статика сайта (server.rootDir/wwwroot). Создаёт и наполняет Jenkins (rsync).
+  # Имя обязано совпадать с WWWROOT_VOLUME в Jenkinsfile сайта.
   wwwroot:
+    external: true
+    name: os_wwwroot
   web_content:
+    external: true
+    name: os_web_content
   jenkins_home:
+    external: true
+    name: os_jenkins_home
   # Данные бывшего opm_hub_db. Сервис снят, том не удалять.
   postgres_data:
+    external: true
+    name: os_postgres_data
   openhub_data:
+    external: true
+    name: os_openhub_data
   openhub_postgres_data:
+    external: true
+    name: os_openhub_postgres_data

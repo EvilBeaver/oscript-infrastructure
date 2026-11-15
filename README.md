@@ -72,7 +72,7 @@ CI/CD сайта — **Jenkins** (`build.oscript.io`, нода A), пайпла�
 2. **`Publish content`** — `rsync` собранных файлов в named volume `os_wwwroot` (`WWWROOT_VOLUME` в `Jenkinsfile`). Это том `wwwroot`, смонтированный в `site` как `/app/data/wwwroot`: новый фронт отдаётся **без пересоздания контейнера**.
 3. **`Create container`** — `docker buildx build --load -t oscript/backend .` собирает образ и кладёт его в Docker ноды A (Jenkins имеет доступ к `/var/run/docker.sock`). На работающий том статики эта стадия не влияет.
 
-Имя тома на хосте — `<проект>_wwwroot`, то есть `os_wwwroot` при `COMPOSE_PROJECT_NAME=os`.
+Том статики на хосте называется `os_wwwroot`: в `compose/node_a.compose.yaml` он объявлен как `external` с явным именем, и это имя обязано совпадать с `WWWROOT_VOLUME` в `Jenkinsfile` сайта.
 
 Пересоздавать контейнер нужно **только при изменениях кода бэкенда** (или его зависимостей):
 
@@ -93,6 +93,34 @@ cd /opt/oscript && ./ops/dc.sh up -d site
 
 - Статика фронтенда живёт в томе `wwwroot`, а не в образе: после `Create container` в образе лежит лишь исходная (`COPY data/`) копия, но она перекрыта монтированием тома. Поэтому «свежесть» сайта определяет `Publish content`, а не пересборка образа.
 - `frontend/.github/workflows/deploy.yml` — черновик (деплой в GitHub Pages), не используется; рабочий CI — Jenkins.
+
+### Тома и защита от `down -v`
+
+Все тома с данными объявлены в compose как `external: true` с явным `name:`. Compose такие тома **не создаёт и не удаляет**, поэтому `./ops/dc.sh down -v` сносит только контейнеры и сети — данные остаются.
+
+| Ключ в compose | Том на хосте | Что внутри |
+| --- | --- | --- |
+| `wwwroot` | `os_wwwroot` | статика фронтенда (создаёт и наполняет Jenkins) |
+| `web_content` | `os_web_content` | релизы (`filesDir`) и `hub.oscript.io` для `s3-sync` |
+| `jenkins_home` | `os_jenkins_home` | `/var/jenkins_home` |
+| `postgres_data` | `os_postgres_data` | данные бывшего opm_hub_db (сервис снят) |
+| `openhub_data`, `openhub_postgres_data` | `os_openhub_data`, `os_openhub_postgres_data` | данные OpenHub и его БД |
+| `minio_data`, `lgtm_data` (нода B) | `os_minio_data`, `os_lgtm_data` | MinIO, Grafana/LGTM |
+
+Обратная сторона: external-том compose не создаёт, поэтому на новой ноде перед первым `up` тома из таблицы должны существовать:
+
+```bash
+docker volume create os_wwwroot   # и остальные тома ноды из таблицы
+```
+
+`os_wwwroot` на ноде A создаётся сам при первой публикации Jenkins (`Publish content`). Если статику нужно отдать из образа ещё до первой публикации — скопировать запечённую в образе копию:
+
+```bash
+docker run --rm -v os_wwwroot:/dst --entrypoint sh oscript/backend \
+  -c 'cp -a /app/data/wwwroot/. /dst/'
+```
+
+Проверка на ноде: `docker volume ls | grep os_wwwroot` и `docker volume inspect os_wwwroot --format '{{index .Labels "com.docker.compose.project"}}'` — метки проекта быть не должно (том не управляется compose).
 
 ## Запуск на ноде
 
