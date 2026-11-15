@@ -15,6 +15,9 @@ networks:
   openhub:
 
 volumes:
+  # Статика сайта (server.rootDir/wwwroot). Имя тома на хосте — os_wwwroot,
+  # совпадает с WWWROOT_VOLUME в Jenkinsfile сайта.
+  wwwroot:
   web_content:
   jenkins_home:
   # Данные бывшего opm_hub_db. Сервис снят, том не удалять.

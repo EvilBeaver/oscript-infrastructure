@@ -8,5 +8,10 @@ services:
     environment:
       # Секрет подписи вебхука публикации из GitHub Actions (SITE_WEBHOOK_SECRET в OneScript)
       - publish_secret
+      # Каталог сервера: wwwroot внутри — том статики (значение по умолчанию из образа)
+      - server_root=/app/data
     volumes:
       - web_content:/var/www/
+      # Статика VitePress и страницы архива версий. Jenkins публикует сюда rsync-ом,
+      # контейнер пересоздаётся только при изменениях кода бэкенда.
+      - wwwroot:/app/data/wwwroot

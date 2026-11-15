@@ -22,7 +22,7 @@ Docker Compose v2 · nginx (образ с `ngx_otel_module`) · Let's Encrypt/ce
 | Сервис compose | Назначение | Домен / доступ |
 | --- | --- | --- |
 | `nginx` | reverse proxy, TLS, OTel, rate limit | все публичные домены (на A) |
-| `site` | основной сайт | `oscript.io`, `www.oscript.io` |
+| `site` | основной сайт (статика — том `wwwroot`, релизы — `web_content`) | `oscript.io`, `www.oscript.io` |
 | `openhub` | хаб пакетов | `hub.oscript.io` |
 | `jenkins` | CI | `build.oscript.io` |
 | `minio` | S3-хранилище артефактов | `s3.oscript.io` (после сплита — на B, прокси с A) |
@@ -73,6 +73,14 @@ ansible-playbook ansible/site.yml \
 
 Новый домен: блок в `sites-enabled/`, затем `./add-letsencrypt-domain.sh <домен>`.
 
+### Сайт oscript.io — деплой без перезапуска
+
+Статика сайта лежит в named volume `wwwroot` (`compose/apps/site.yml`, монтирование `wwwroot:/app/data/wwwroot`), релизы — по-прежнему в `web_content`. Jenkins сайта (`EvilBeaver/OneScript.WebSite`) собирает VitePress и публикует результат `rsync`-ом в том `os_wwwroot`; контейнер `site` при этом не трогается.
+
+- Правки контента/вёрстки: push в репо сайта → пайплайн Jenkins → готово.
+- `./ops/dc.sh up -d site` — **только** при изменениях кода бэкенда (и при первом включении тома).
+- Разовая настройка тома: `./ops/dc.sh config` → `./ops/dc.sh up -d site` (Docker сам наполнит пустой том содержимым `/app/data/wwwroot` из образа) → `docker volume ls | grep wwwroot` должен показать `os_wwwroot`. Имя обязано совпадать с `WWWROOT_VOLUME` в `Jenkinsfile` сайта.
+
 ### OpenHub
 
 Переменные — в `.env` и `compose/apps/openhub.yml` (имена по правилу хаба: точка → `_`, внутреннее `_` удваивается). Первый запуск: образцы env → DNS → certbot → MinIO → роль `grafana_ro` → `./ops/dc.sh up -d openhub` → `/setup`.
@@ -108,3 +116,4 @@ Bootstrap: `minio/bootstrap.sh`. Политики: `minio/policies/`. Smoke: `mi
 | OTel, robots, rate limit hub | `web/nginx/conf.d/otel.conf`, `hub-limits.conf`; `./web/nginx/test/run.sh` |
 | роль БД Grafana | `monitoring/grafana-db-role.sql`, `monitoring/grafana-datasource-openhub-db.yaml` |
 | переменные OpenHub / MinIO | `openhub.env.example`, `env/node_*.env.example`, `minio/.env.example` |
+| деплой сайта без перезапуска | `compose/apps/site.yml`, том `wwwroot`; README → «Сайт oscript.io» |
