@@ -1,5 +1,5 @@
 # Официальный образ с модулем ngx_otel_module (трассировка OpenTelemetry)
-FROM nginx:1.30.5-otel
+FROM nginx:1.30.7-otel
 
 COPY cat_me_to_fastcgi_params /tmp/
 
